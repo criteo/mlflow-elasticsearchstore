@@ -1,7 +1,6 @@
 from mlflow.entities import (
     Experiment, RunTag, Metric, Param, RunData, RunInfo,
-    SourceType, RunStatus, Run, ViewType, ExperimentTag)
-from mlflow.entities.lifecycle_stage import LifecycleStage
+    SourceType, RunStatus, Run, ViewType, ExperimentTag, LifecycleStage)
 from elasticsearch_dsl import Document, InnerDoc, Nested, Text, Keyword, Float, Integer, Date
 
 
