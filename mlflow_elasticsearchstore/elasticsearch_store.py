@@ -11,7 +11,7 @@ from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
 from elasticsearch_dsl import Index, Search, Q, connections
 
-from models import ElasticExperiment, ElasticRun, ElasticMetric, \
+from mlflow_elasticsearchstore.models import ElasticExperiment, ElasticRun, ElasticMetric, \
     ElasticParam, ElasticTag, ElasticLatestMetric
 
 
