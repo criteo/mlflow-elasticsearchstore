@@ -26,6 +26,9 @@ mock_run = ElasticRun(meta={'id': "1"},
                       params=[ElasticParam(key="param1", value="val1")],
                       tags=[ElasticTag(key="tag1", value="val1")],)
 
+mock_elastic_metric = ElasticMetric(key="metric2", value=2, timestamp=1, step=1)
+mock_metric = Metric(key="metric2", value=2, timestamp=1, step=1)
+
 mock_elastic_param = ElasticParam(key="param2", value="val2")
 mock_param = Param(key="param2", value="val2")
 
@@ -67,6 +70,15 @@ def test_get_experiment():
     assert experiment_mock.to_mlflow_entity().__dict__ == real_experiment.__dict__
 
 
+def test_create_run():
+    connections.create_connection = MagicMock()
+    store = ElasticsearchStore("user", "password", "host", "port")
+    connections.create_connection.assert_called_with(
+        hosts=["user:password@host:port"])
+
+    # ToDo
+
+
 def test__get_run():
     connections.create_connection = MagicMock()
     store = ElasticsearchStore("user", "password", "host", "port")
@@ -91,6 +103,23 @@ def test_get_run():
     ElasticRun.get.assert_called_once_with(id="1")
     run_mock = ElasticRun.get.return_value
     assert run_mock.to_mlflow_entity().__dict__ == real_run.__dict__
+
+
+def test_log_metric():
+    connections.create_connection = MagicMock()
+    store = ElasticsearchStore("user", "password", "host", "port")
+    connections.create_connection.assert_called_with(
+        hosts=["user:password@host:port"])
+
+    ElasticRun.get = MagicMock(return_value=mock_run)
+
+    run_mock = ElasticRun.get.return_value
+    # run_mock.metrics.append(mock_elastic_metric)
+    run_mock.save = MagicMock()
+
+    store.log_metric("1", mock_metric)
+    ElasticRun.get.assert_called_once_with(id="1")
+    run_mock.save.assert_called_once_with()
 
 
 def test_log_param():
