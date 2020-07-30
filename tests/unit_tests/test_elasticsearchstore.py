@@ -13,11 +13,12 @@ from mlflow_elasticsearchstore.models import ElasticExperiment, ElasticRun, \
 @mock.patch('elasticsearch_dsl.Document')
 def test_create_experiment(document_mock):
     store = ElasticsearchStore("user", "password", "host", "port")
-    store.create_experiment("name", "artifact_location")
+    experiment_id = store.create_experiment("name", "artifact_location")
     document_mock.assert_called_once_with(name="name", lifecycle_stage=LifecycleStage.ACTIVE,
                                           artifact_location="artifact_location")
     experiment_mock = document_mock.return_value.__init__
     experiment_mock.assert_called_once_with()
+    assert experiment_mock.meta.id == experiment_id
 
 
 @mock.patch('elasticsearch_dsl.Document')
