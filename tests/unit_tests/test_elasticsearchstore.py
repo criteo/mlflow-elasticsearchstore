@@ -19,4 +19,5 @@ def test_create_experiment(elastic_experiment_mock, elasticsearch_store_mock):
 def test__get_run(elastic_run_mock, elasticsearch_store_mock):
     elasticsearch_store_mock.test__get_run(1)
     elastic_run_mock.assert_called_once_with(id=1)
-    elastic_run_mock.return_value.get
+    run_mock = elastic_run_mock.return_value.get
+    assert run_mock.meta.id == 1
