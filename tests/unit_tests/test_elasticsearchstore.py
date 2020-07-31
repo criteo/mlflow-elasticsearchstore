@@ -30,15 +30,8 @@ elastic_tag = ElasticTag(key="tag2", value="val2")
 tag = RunTag(key="tag2", value="val2")
 
 
-@mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.save')
-@pytest.mark.usefixture('create_store')
-def test_create_experiment(elastic_experiment_save_mock, create_store):
-    create_store.create_experiment("name", "artifact_location")
-    elastic_experiment_save_mock.assert_called_once_with()
-
-
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
-@pytest.mark.usefixture('create_store')
+@pytest.mark.usefixtures('create_store')
 def test_get_experiment(elastic_experiment_get_mock, create_store):
     elastic_experiment_get_mock.return_value = experiment
     real_experiment = create_store.get_experiment("1")
@@ -50,7 +43,7 @@ def test_get_experiment(elastic_experiment_get_mock, create_store):
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.save')
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
 @mock.patch('uuid.uuid4')
-@pytest.mark.usefixture('create_store')
+@pytest.mark.usefixtures('create_store')
 def test_create_run(uuid_mock, elastic_experiment_get_mock,
                     elastic_run_save_mock, create_store):
     uuid_mock.hex.return_value = "run_id"
@@ -66,7 +59,7 @@ def test_create_run(uuid_mock, elastic_experiment_get_mock,
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
-@pytest.mark.usefixture('create_store')
+@pytest.mark.usefixtures('create_store')
 def test__get_run(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     real_run = create_store._get_run("1")
@@ -76,7 +69,7 @@ def test__get_run(elastic_run_get_mock, create_store):
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
-@pytest.mark.usefixture('create_store')
+@pytest.mark.usefixtures('create_store')
 def test_get_run(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     real_run = create_store.get_run("1")
@@ -91,7 +84,7 @@ def test_get_run(elastic_run_get_mock, create_store):
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
-@pytest.mark.usefixture('create_store')
+@pytest.mark.usefixtures('create_store')
 def test_log_metric(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     run_mock = elastic_run_get_mock.return_value
@@ -102,7 +95,7 @@ def test_log_metric(elastic_run_get_mock, create_store):
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
-@pytest.mark.usefixture('create_store')
+@pytest.mark.usefixtures('create_store')
 def test_log_param(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     run_mock = elastic_run_get_mock.return_value
@@ -113,7 +106,7 @@ def test_log_param(elastic_run_get_mock, create_store):
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
-@pytest.mark.usefixture('create_store')
+@pytest.mark.usefixtures('create_store')
 def test_set_tag(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     run_mock = elastic_run_get_mock.return_value
