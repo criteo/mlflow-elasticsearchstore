@@ -2,13 +2,13 @@ import pytest
 import mock
 from elasticsearch_dsl import Index, Document, connections
 
-from mlflow.entities import (
-    Experiment, RunTag, Metric, Param, RunData, RunInfo,
-    SourceType, RunStatus, Run, ViewType, ExperimentTag, Columns, LifecycleStage)
+from mlflow.entities import (Experiment, RunTag, Metric, Param, RunData, RunInfo,
+                             SourceType, RunStatus, Run, ViewType, ExperimentTag,
+                             Columns, LifecycleStage)
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
-from mlflow_elasticsearchstore.models import ElasticExperiment, ElasticRun, \
-    ElasticMetric, ElasticParam, ElasticTag
+from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun,
+                                              ElasticMetric, ElasticParam, ElasticTag)
 
 experiment = ElasticExperiment(meta={'id': "1"}, name="name",
                                lifecycle_stage=LifecycleStage.ACTIVE,
