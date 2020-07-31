@@ -1,14 +1,14 @@
 from elasticsearch_dsl import Document, InnerDoc, Nested, Text, Keyword, Float, Integer, Date
 
-from mlflow.entities import (Experiment, RunTag, Metric, Param, RunData, RunInfo,
-                             SourceType, RunStatus, Run, ViewType, ExperimentTag, LifecycleStage)
+from mlflow.entities import (Experiment, RunTag, Metric, Param,
+                             RunData, RunInfo, Run, ExperimentTag)
 
 
 class ElasticExperimentTag(InnerDoc):
     key = Keyword()
     value = Text()
 
-    def to_mlflow_entity(self):
+    def to_mlflow_entity(self) -> ExperimentTag:
         return ExperimentTag(key=self.key,
                              value=self.value)
 
@@ -26,7 +26,7 @@ class ElasticExperiment(Document):
             "number_of_replicas": 1
         }
 
-    def to_mlflow_entity(self):
+    def to_mlflow_entity(self) -> Experiment:
         return Experiment(
             experiment_id=str(self.meta.id),
             name=self.name,
@@ -41,7 +41,7 @@ class ElasticMetric(InnerDoc):
     timestamp = Date()
     step = Integer()
 
-    def to_mlflow_entity(self):
+    def to_mlflow_entity(self) -> Metric:
         return Metric(
             key=self.key,
             value=self.value,
@@ -60,7 +60,7 @@ class ElasticParam(InnerDoc):
     key = Keyword()
     value = Text()
 
-    def to_mlflow_entity(self):
+    def to_mlflow_entity(self) -> Param:
         return Param(
             key=self.key,
             value=self.value)
@@ -70,7 +70,7 @@ class ElasticTag(InnerDoc):
     key = Keyword()
     value = Text()
 
-    def to_mlflow_entity(self):
+    def to_mlflow_entity(self) -> RunTag:
         return RunTag(
             key=self.key,
             value=self.value)
@@ -100,7 +100,7 @@ class ElasticRun(Document):
             "number_of_replicas": 2
         }
 
-    def to_mlflow_entity(self):
+    def to_mlflow_entity(self) -> Run:
         run_info = RunInfo(
             run_uuid=self.meta.id,
             run_id=self.meta.id,

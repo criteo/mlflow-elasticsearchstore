@@ -1,18 +1,16 @@
 import uuid
 from typing import List
-from elasticsearch_dsl import Index, Search, Q, connections
+from elasticsearch_dsl import Search, connections
 
 from mlflow.store.tracking.abstract_store import AbstractStore
-from mlflow.protos.databricks_pb2 import (INVALID_PARAMETER_VALUE, RESOURCE_ALREADY_EXISTS,
-                                          INVALID_STATE, RESOURCE_DOES_NOT_EXIST, INTERNAL_ERROR)
-from mlflow.entities import (Experiment, RunTag, Metric, Param, RunData, RunInfo,
-                             SourceType, RunStatus, Run, ViewType, ExperimentTag,
-                             Columns, LifecycleStage)
+from mlflow.protos.databricks_pb2 import (INVALID_PARAMETER_VALUE)
+from mlflow.entities import (Experiment, RunTag, Metric, Param,
+                             RunStatus, Run, LifecycleStage)
 from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
 
 from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun, ElasticMetric,
-                                              ElasticParam, ElasticTag, ElasticLatestMetric)
+                                              ElasticParam, ElasticTag)
 
 
 class ElasticsearchStore(AbstractStore):

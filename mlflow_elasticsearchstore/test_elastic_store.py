@@ -13,8 +13,8 @@ param = Param("param2", "val1")
 tag = RunTag("tag2", "val1")
 
 
-def main(user, password, host, port):
-    store = ElasticsearchStore(user, password, str(host), str(port))
+def main(user: str, password: str, host: str, port: str) -> None:
+    store = ElasticsearchStore(user, password, host, port)
     exp_id = store.create_experiment("a.vivien-exp2", "artifact_path")
     time.sleep(1)
     run = store.create_run(exp_id, "1", int(datetime.datetime.now().timestamp() * 1000), [])

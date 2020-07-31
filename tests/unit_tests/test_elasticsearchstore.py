@@ -1,10 +1,7 @@
 import pytest
 import mock
-from elasticsearch_dsl import Index, Document, connections
 
-from mlflow.entities import (Experiment, RunTag, Metric, Param, RunData, RunInfo,
-                             SourceType, RunStatus, Run, ViewType, ExperimentTag,
-                             Columns, LifecycleStage)
+from mlflow.entities import (RunTag, Metric, Param, RunStatus, LifecycleStage)
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
 from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun,
@@ -86,14 +83,10 @@ def test_log_metric(elastic_run_get_mock, create_store):
     run_mock.save.assert_called_once_with()
 
 
-@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
-def test_log_param(elastic_run_get_mock, create_store):
-    elastic_run_get_mock.return_value = run
-    run_mock = elastic_run_get_mock.return_value
-    run_mock.save = mock.MagicMock()
+def test_log_param(get_run, create_store):
     create_store.log_param("1", param)
-    elastic_run_get_mock.assert_called_once_with(id="1")
-    run_mock.save.assert_called_once_with()
+    get_run.assert_called_once_with(id="1")
+    get_run.return_value.save.assert_called_once_with()
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
