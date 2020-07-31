@@ -48,7 +48,9 @@ def test_get_experiment(elastic_experiment_get_mock, create_store):
 def test_create_run(uuid_mock, elastic_experiment_get_mock,
                     elastic_run_save_mock, create_store):
     elasticsearch_proc = factories.elasticsearch_proc(port=None)
+    print(elasticsearch_proc)
     elasticsearch = factories.elasticsearch('elasticsearch_proc')
+    elasticsearch.create(run)
     uuid_mock.hex.return_value = "run_id"
     elastic_experiment_get_mock.return_value = experiment
     real_run = create_store.create_run(experiment_id="1", user_id="user_id", start_time=1, tags=[])
