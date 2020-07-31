@@ -86,9 +86,12 @@ def test_get_run(elastic_run_get_mock, create_store):
 @pytest.mark.usefixtures('create_store')
 def test_log_metric(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
+    run.metrics = mock.MagicMock()
+    run.metrics.append = mock.MagicMock()
     run.save = mock.MagicMock()
     create_store.log_metric("1", metric)
     elastic_run_get_mock.assert_called_once_with(id="1")
+    run.metrics.append.assert_called_once_with(elastic_metric)
     run.save.assert_called_once_with()
 
 
@@ -96,9 +99,12 @@ def test_log_metric(elastic_run_get_mock, create_store):
 @pytest.mark.usefixtures('create_store')
 def test_log_param(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
+    run.params = mock.MagicMock()
+    run.params.append = mock.MagicMock()
     run.save = mock.MagicMock()
     create_store.log_param("1", param)
     elastic_run_get_mock.assert_called_once_with(id="1")
+    run.params.append.assert_called_once_with(elastic_param)
     run.save.assert_called_once_with()
 
 
@@ -106,7 +112,10 @@ def test_log_param(elastic_run_get_mock, create_store):
 @pytest.mark.usefixtures('create_store')
 def test_set_tag(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
+    run.tags = mock.MagicMock()
+    run.tags.append = mock.MagicMock()
     run.save = mock.MagicMock()
     create_store.set_tag("1", tag)
     elastic_run_get_mock.assert_called_once_with(id="1")
+    run.tags.append.assert_called_once_with(elastic_tag)
     run.save.assert_called_once_with()
