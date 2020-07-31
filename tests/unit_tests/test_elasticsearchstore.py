@@ -1,5 +1,6 @@
 import pytest
 import mock
+from types import SimpleNamespace
 
 from mlflow.entities import RunTag, Metric, Param, RunStatus, LifecycleStage
 
@@ -36,8 +37,7 @@ def test_get_experiment(elastic_experiment_get_mock, create_store):
     elastic_experiment_get_mock.return_value = experiment
     real_experiment = create_store.get_experiment("1")
     ElasticExperiment.get.assert_called_once_with(id="1")
-    experiment_mock = elastic_experiment_get_mock.return_value
-    assert experiment_mock.to_mlflow_entity().__dict__ == real_experiment.__dict__
+    assert experiment.to_mlflow_entity().__dict__ == real_experiment.__dict__
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.save')
@@ -46,7 +46,7 @@ def test_get_experiment(elastic_experiment_get_mock, create_store):
 @pytest.mark.usefixtures('create_store')
 def test_create_run(uuid_mock, elastic_experiment_get_mock,
                     elastic_run_save_mock, create_store):
-    uuid_mock.hex.return_value = "run_id"
+    uuid_mock.return_value = SimpleNamespace(hex='run_id')
     elastic_experiment_get_mock.return_value = experiment
     real_run = create_store.create_run(experiment_id="1", user_id="user_id", start_time=1, tags=[])
     uuid_mock.assert_called_once_with()
@@ -56,6 +56,7 @@ def test_create_run(uuid_mock, elastic_experiment_get_mock,
     assert real_run._info.user_id == "user_id"
     assert real_run._info.start_time == 1
     assert real_run._data.tags == {}
+    assert real_run._info.run_id == "run_id"
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
@@ -64,8 +65,7 @@ def test__get_run(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     real_run = create_store._get_run("1")
     ElasticRun.get.assert_called_once_with(id="1")
-    run_mock = elastic_run_get_mock.return_value
-    assert run_mock.__dict__ == real_run.__dict__
+    assert run.__dict__ == real_run.__dict__
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
@@ -74,12 +74,11 @@ def test_get_run(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     real_run = create_store.get_run("1")
     ElasticRun.get.assert_called_once_with(id="1")
-    run_mock = elastic_run_get_mock.return_value
-    assert run_mock.to_mlflow_entity()._info.__dict__ == real_run._info.__dict__
-    assert run_mock.to_mlflow_entity()._data._metrics == real_run._data._metrics
-    assert run_mock.to_mlflow_entity()._data._params == real_run._data._params
-    assert run_mock.to_mlflow_entity()._data._tags == real_run._data._tags
-    assert (run_mock.to_mlflow_entity()._data._metric_objs[0].__dict__ ==
+    assert run.to_mlflow_entity()._info.__dict__ == real_run._info.__dict__
+    assert run.to_mlflow_entity()._data._metrics == real_run._data._metrics
+    assert run.to_mlflow_entity()._data._params == real_run._data._params
+    assert run.to_mlflow_entity()._data._tags == real_run._data._tags
+    assert (run.to_mlflow_entity()._data._metric_objs[0].__dict__ ==
             real_run._data._metric_objs[0].__dict__)
 
 
@@ -87,30 +86,28 @@ def test_get_run(elastic_run_get_mock, create_store):
 @pytest.mark.usefixtures('create_store')
 def test_log_metric(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
-    run_mock = elastic_run_get_mock.return_value
-    run_mock.save = mock.MagicMock()
+    run.save = mock.MagicMock()
     create_store.log_metric("1", metric)
     elastic_run_get_mock.assert_called_once_with(id="1")
-    run_mock.save.assert_called_once_with()
+    run.metrics.append.assert_called_once_with(elastic_metric)
+    run.save.assert_called_once_with()
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
 @pytest.mark.usefixtures('create_store')
 def test_log_param(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
-    run_mock = elastic_run_get_mock.return_value
-    run_mock.save = mock.MagicMock()
+    run.save = mock.MagicMock()
     create_store.log_param("1", param)
     elastic_run_get_mock.assert_called_once_with(id="1")
-    run_mock.save.assert_called_once_with()
+    run.save.assert_called_once_with()
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
 @pytest.mark.usefixtures('create_store')
 def test_set_tag(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
-    run_mock = elastic_run_get_mock.return_value
-    run_mock.save = mock.MagicMock()
+    run.save = mock.MagicMock()
     create_store.set_tag("1", tag)
     elastic_run_get_mock.assert_called_once_with(id="1")
-    run_mock.save.assert_called_once_with()
+    run.save.assert_called_once_with()
