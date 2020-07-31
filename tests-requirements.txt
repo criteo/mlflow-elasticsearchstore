@@ -2,3 +2,4 @@ pytest
 pylama
 mypy
 mock
+pytest-elasticsearch
