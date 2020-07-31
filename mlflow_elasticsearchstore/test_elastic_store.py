@@ -4,8 +4,8 @@ import fire
 
 from mlflow.entities import Metric, Param, RunTag
 
-from elasticsearch_store import ElasticsearchStore
-from models import ElasticExperiment, ElasticRun, ElasticMetric, \
+from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
+from mlflow_elasticsearchstore.models import ElasticExperiment, ElasticRun, ElasticMetric, \
     ElasticParam, ElasticTag, ElasticLatestMetric
 
 metric = Metric("metric2", 9, int(datetime.datetime.now().timestamp() * 1000), 0)

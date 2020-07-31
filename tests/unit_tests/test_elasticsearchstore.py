@@ -1,156 +1,106 @@
 import pytest
 import mock
-import mlflow
-import elasticsearch_dsl
+from elasticsearch_dsl import Index, Document, connections
 
-from mock import MagicMock
 from mlflow.entities import (
     Experiment, RunTag, Metric, Param, RunData, RunInfo,
     SourceType, RunStatus, Run, ViewType, ExperimentTag, Columns, LifecycleStage)
-from elasticsearch_dsl import Index, Search, Q, connections
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
 from mlflow_elasticsearchstore.models import ElasticExperiment, ElasticRun, \
     ElasticMetric, ElasticParam, ElasticTag
 
-mock_experiment = ElasticExperiment(meta={'id': "1"}, name="name",
-                                    lifecycle_stage=LifecycleStage.ACTIVE,
-                                    artifact_location="artifact_location")
+experiment = ElasticExperiment(meta={'id': "1"}, name="name",
+                               lifecycle_stage=LifecycleStage.ACTIVE,
+                               artifact_location="artifact_location")
 
-mock_run = ElasticRun(meta={'id': "1"},
-                      experiment_id="experiment_id", user_id="user_id",
-                      status=RunStatus.to_string(RunStatus.RUNNING),
-                      start_time=1, end_time=None,
-                      lifecycle_stage=LifecycleStage.ACTIVE, artifact_uri="artifact_location",
-                      metrics=[ElasticMetric(key="metric1", value=1, timestamp=1, step=1)],
-                      params=[ElasticParam(key="param1", value="val1")],
-                      tags=[ElasticTag(key="tag1", value="val1")],)
+run = ElasticRun(meta={'id': "1"},
+                 experiment_id="experiment_id", user_id="user_id",
+                 status=RunStatus.to_string(RunStatus.RUNNING),
+                 start_time=1, end_time=None,
+                 lifecycle_stage=LifecycleStage.ACTIVE, artifact_uri="artifact_location",
+                 metrics=[ElasticMetric(key="metric1", value=1, timestamp=1, step=1)],
+                 params=[ElasticParam(key="param1", value="val1")],
+                 tags=[ElasticTag(key="tag1", value="val1")],)
 
-mock_elastic_metric = ElasticMetric(key="metric2", value=2, timestamp=1, step=1)
-mock_metric = Metric(key="metric2", value=2, timestamp=1, step=1)
+elastic_metric = ElasticMetric(key="metric2", value=2, timestamp=1, step=1)
+metric = Metric(key="metric2", value=2, timestamp=1, step=1)
 
-mock_elastic_param = ElasticParam(key="param2", value="val2")
-mock_param = Param(key="param2", value="val2")
+elastic_param = ElasticParam(key="param2", value="val2")
+param = Param(key="param2", value="val2")
 
-mock_elastic_tag = ElasticTag(key="tag2", value="val2")
-mock_tag = RunTag(key="tag2", value="val2")
-
-
-@mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment')
-def test_create_experiment(elastic_experiment_mock):
-    connections.create_connection = MagicMock()
-    store = ElasticsearchStore("user", "password", "host", "port")
-    connections.create_connection.assert_called_with(
-        hosts=["user:password@host:port"])
-
-    elastic_experiment_mock.return_value = mock_experiment
-    experiment_mock = elastic_experiment_mock.return_value
-    experiment_mock.save = MagicMock()
-    store.create_experiment("name", "artifact_location")
-    elastic_experiment_mock.assert_called_once_with(name="name",
-                                                    lifecycle_stage=LifecycleStage.ACTIVE,
-                                                    artifact_location="artifact_location")
-    experiment_mock.save.assert_called_once_with()
-    # experiment_mock = elastic_experiment_mock.return_value
-    # experiment_mock.save = MagicMock()
-    # experiment_mock.save.assert_called_once_with()
-    # assert experiment_mock.meta.id == real_experiment_id
+elastic_tag = ElasticTag(key="tag2", value="val2")
+tag = RunTag(key="tag2", value="val2")
 
 
-def test_get_experiment():
-    connections.create_connection = MagicMock()
-    store = ElasticsearchStore("user", "password", "host", "port")
-    connections.create_connection.assert_called_with(
-        hosts=["user:password@host:port"])
+@mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.save')
+def test_create_experiment(elastic_experiment_save_mock, create_store):
+    create_store.create_experiment("name", "artifact_location")
+    elastic_experiment_save_mock.assert_called_once_with()
 
-    ElasticExperiment.get = MagicMock(return_value=mock_experiment)
-    real_experiment = store.get_experiment("1")
+
+@mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
+def test_get_experiment(elastic_experiment_get_mock, create_store):
+    elastic_experiment_get_mock.return_value = experiment
+    real_experiment = create_store.get_experiment("1")
     ElasticExperiment.get.assert_called_once_with(id="1")
-    experiment_mock = ElasticExperiment.get.return_value
+    experiment_mock = elastic_experiment_get_mock.return_value
     assert experiment_mock.to_mlflow_entity().__dict__ == real_experiment.__dict__
 
 
-def test_create_run():
-    connections.create_connection = MagicMock()
-    store = ElasticsearchStore("user", "password", "host", "port")
-    connections.create_connection.assert_called_with(
-        hosts=["user:password@host:port"])
-
+def test_create_run(create_store):
+    print("ToDo")
     # ToDo
 
 
-def test__get_run():
-    connections.create_connection = MagicMock()
-    store = ElasticsearchStore("user", "password", "host", "port")
-    connections.create_connection.assert_called_with(
-        hosts=["user:password@host:port"])
-
-    ElasticRun.get = MagicMock(return_value=mock_run)
-    real_run = store._get_run("1")
+@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+def test__get_run(elastic_run_get_mock, create_store):
+    elastic_run_get_mock.return_value = run
+    real_run = create_store._get_run("1")
     ElasticRun.get.assert_called_once_with(id="1")
-    run_mock = ElasticRun.get.return_value
+    run_mock = elastic_run_get_mock.return_value
     assert run_mock.__dict__ == real_run.__dict__
 
 
-def test_get_run():
-    connections.create_connection = MagicMock()
-    store = ElasticsearchStore("user", "password", "host", "port")
-    connections.create_connection.assert_called_with(
-        hosts=["user:password@host:port"])
-
-    ElasticRun.get = MagicMock(return_value=mock_run)
-    real_run = store.get_run("1")
+@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+def test_get_run(elastic_run_get_mock, create_store):
+    elastic_run_get_mock.return_value = run
+    real_run = create_store.get_run("1")
     ElasticRun.get.assert_called_once_with(id="1")
-    run_mock = ElasticRun.get.return_value
-    assert run_mock.to_mlflow_entity().__dict__ == real_run.__dict__
+    run_mock = elastic_run_get_mock.return_value
+    assert run_mock.to_mlflow_entity()._info.__dict__ == real_run._info.__dict__
+    assert run_mock.to_mlflow_entity()._data._metrics == real_run._data._metrics
+    assert run_mock.to_mlflow_entity()._data._params == real_run._data._params
+    assert run_mock.to_mlflow_entity()._data._tags == real_run._data._tags
+    assert (run_mock.to_mlflow_entity()._data._metric_objs[0].__dict__ ==
+            real_run._data._metric_objs[0].__dict__)
 
 
-def test_log_metric():
-    connections.create_connection = MagicMock()
-    store = ElasticsearchStore("user", "password", "host", "port")
-    connections.create_connection.assert_called_with(
-        hosts=["user:password@host:port"])
-
-    ElasticRun.get = MagicMock(return_value=mock_run)
-
-    run_mock = ElasticRun.get.return_value
-    # run_mock.metrics.append(mock_elastic_metric)
-    run_mock.save = MagicMock()
-
-    store.log_metric("1", mock_metric)
-    ElasticRun.get.assert_called_once_with(id="1")
+@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+def test_log_metric(elastic_run_get_mock, create_store):
+    elastic_run_get_mock.return_value = run
+    run_mock = elastic_run_get_mock.return_value
+    run_mock.save = mock.MagicMock()
+    create_store.log_metric("1", metric)
+    elastic_run_get_mock.assert_called_once_with(id="1")
     run_mock.save.assert_called_once_with()
 
 
-def test_log_param():
-    connections.create_connection = MagicMock()
-    store = ElasticsearchStore("user", "password", "host", "port")
-    connections.create_connection.assert_called_with(
-        hosts=["user:password@host:port"])
-
-    ElasticRun.get = MagicMock(return_value=mock_run)
-
-    run_mock = ElasticRun.get.return_value
-    # run_mock.params.append(mock_elastic_param)
-    run_mock.save = MagicMock()
-
-    store.log_param("1", mock_param)
-    ElasticRun.get.assert_called_once_with(id="1")
+@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+def test_log_param(elastic_run_get_mock, create_store):
+    elastic_run_get_mock.return_value = run
+    run_mock = elastic_run_get_mock.return_value
+    run_mock.save = mock.MagicMock()
+    create_store.log_param("1", param)
+    elastic_run_get_mock.assert_called_once_with(id="1")
     run_mock.save.assert_called_once_with()
 
 
-def test_set_tag():
-    connections.create_connection = MagicMock()
-    store = ElasticsearchStore("user", "password", "host", "port")
-    connections.create_connection.assert_called_with(
-        hosts=["user:password@host:port"])
-
-    ElasticRun.get = MagicMock(return_value=mock_run)
-
-    run_mock = ElasticRun.get.return_value
-    # run_mock.params.append(mock_elastic_tag)
-    run_mock.save = MagicMock()
-
-    store.set_tag("1", mock_tag)
-    ElasticRun.get.assert_called_once_with(id="1")
+@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+def test_set_tag(elastic_run_get_mock, create_store):
+    elastic_run_get_mock.return_value = run
+    run_mock = elastic_run_get_mock.return_value
+    run_mock.save = mock.MagicMock()
+    create_store.set_tag("1", tag)
+    elastic_run_get_mock.assert_called_once_with(id="1")
     run_mock.save.assert_called_once_with()

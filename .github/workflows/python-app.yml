@@ -27,4 +27,7 @@ jobs:
         pylama
     - name: Typer checker
       run: |
-        mypy --ignore-missing-imports --config-file setup.cfg
+        mypy --ignore-missing-imports --disallow-untyped-defs --no-strict-optional --config-file setup.cfg
+    - name: Unit tests
+      run: |
+        pytest
