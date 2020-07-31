@@ -89,7 +89,6 @@ def test_log_metric(elastic_run_get_mock, create_store):
     run.save = mock.MagicMock()
     create_store.log_metric("1", metric)
     elastic_run_get_mock.assert_called_once_with(id="1")
-    run.metrics.append.assert_called_once_with(elastic_metric)
     run.save.assert_called_once_with()
 
 
