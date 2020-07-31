@@ -3,7 +3,7 @@ from typing import List
 from elasticsearch_dsl import Search, connections
 
 from mlflow.store.tracking.abstract_store import AbstractStore
-from mlflow.protos.databricks_pb2 import (INVALID_PARAMETER_VALUE)
+from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 from mlflow.entities import (Experiment, RunTag, Metric, Param,
                              RunStatus, Run, LifecycleStage)
 from mlflow.exceptions import MlflowException
