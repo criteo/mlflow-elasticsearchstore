@@ -122,7 +122,7 @@ def test_set_tag(elastic_run_get_mock, create_store):
 
 @mock.patch('elasticsearch_dsl.Search.filter')
 @pytest.mark.usefixtures('create_store')
-def test_search(search_filter_mock, create_store):
+def test_search_runs(search_filter_mock, create_store):
     m = SimpleNamespace(**{"key": "metric1", "value": 1, "timestamp": 1, "step": 1})
     p = SimpleNamespace(**{"key": "param1", "value": "val1"})
     t = SimpleNamespace(**{"key": "tag1", "value": "val1"})
