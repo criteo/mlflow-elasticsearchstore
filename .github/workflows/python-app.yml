@@ -20,7 +20,6 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        pip install --upgrade setuptools
         pip install .
         pip install -r tests-requirements.txt
     - name: Linter
