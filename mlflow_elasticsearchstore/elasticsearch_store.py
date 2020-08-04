@@ -2,10 +2,11 @@ import uuid
 from typing import List, Tuple
 from elasticsearch_dsl import Search, connections
 import time
+from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
-from mlflow.entities import (Experiment, RunTag, Metric, Param,
+from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData,
                              RunStatus, Run, LifecycleStage, ViewType)
 from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
@@ -22,10 +23,19 @@ class ElasticsearchStore(AbstractStore):
 
     def __init__(self, store_uri: str = None, artifact_uri: str = None) -> None:
         self.is_plugin = True
-        url = store_uri.split('/')[2]
-
-        connections.create_connection(hosts=[url])
+        connections.create_connection(hosts=[urllib.parse.urlparse(store_uri).netloc])
         super(ElasticsearchStore, self).__init__()
+
+    def hit_to_mlflow(self, model, **kwargs):
+        return model(**kwargs)
+
+    def list_experiments(self, view_type: str = ViewType.ACTIVE_ONLY) -> List[Experiment]:
+        stages = LifecycleStage.view_type_to_stages(view_type)
+        response = Search(index="mlflow-experiments").filter("terms",
+                                                             lifecycle_stage=stages).execute()
+        return [self.hit_to_mlflow(Experiment, experiment_id=e.meta.id, name=e.name,
+                                   artifact_location=e.artifact_location,
+                                   lifecycle_stage=e.lifecycle_stage) for e in response]
 
     def create_experiment(self, name: str, artifact_location: str = None) -> str:
         if name is None or name == '':
@@ -106,44 +116,19 @@ class ElasticsearchStore(AbstractStore):
         response = Search(index="mlflow-runs").filter("match",
                                                       experiment_id=experiment_ids[0]).execute()
         runs = []
-        for r in response:
-            metrics = []
-            params = []
-            tags = []
-            for m in r.metrics:
-                metrics.append(ElasticMetric(key=m.key,
-                                             value=m.value,
-                                             timestamp=m.timestamp,
-                                             step=m.step))
-            for p in r.params:
-                params.append(ElasticParam(key=p.key, value=p.value))
-            for t in r.tags:
-                tags.append(ElasticTag(key=t.key, value=t.value))
-            run = ElasticRun(meta={'id': r.meta.id},
-                             experiment_id=r.experiment_id, user_id=r.user_id,
-                             status=r.status,
-                             start_time=r.start_time,
-                             lifecycle_stage=r.lifecycle_stage, artifact_uri=r.artifact_uri,
-                             metrics=metrics, params=params, tags=tags
-                             )
-            runs.append(run.to_mlflow_entity())
         offset = SearchUtils.parse_start_offset_from_page_token(page_token)
+        for r in response:
+            metrics = [self.hit_to_mlflow(Metric, key=m.key, value=m.value,
+                                          timestamp=m.timestamp, step=m.step) for m in r.metrics]
+            params = [self.hit_to_mlflow(Param, key=p.key, value=p.value) for p in r.params]
+            tags = [self.hit_to_mlflow(RunTag, key=t.key, value=t.value) for t in r.tags]
+            run_data = self.hit_to_mlflow(RunData, metrics=metrics, params=params, tags=tags)
+            run_info = self.hit_to_mlflow(RunInfo, run_uuid=r.meta.id, run_id=r.meta.id,
+                                          experiment_id=str(r.experiment_id), user_id=r.user_id,
+                                          status=r.status, start_time=r.start_time,
+                                          end_time=r.end_time if hasattr(r, 'end_time') else None,
+                                          lifecycle_stage=r.lifecycle_stage,
+                                          artifact_uri=r.artifact_uri)
+            runs.append(self.hit_to_mlflow(Run, run_info=run_info, run_data=run_data))
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
-
-    def _list_experiments(self, view_type: str = ViewType.ACTIVE_ONLY) -> List[ElasticExperiment]:
-        print(view_type)
-        response = Search(index="mlflow-experiments").execute()
-        experiments = []
-        print(response.to_dict())
-        for e in response:
-            experiment = ElasticExperiment(meta={'id': e.meta.id},
-                                           name=e.name,
-                                           artifact_location=e.artifact_location,
-                                           lifecycle_stage=e.lifecycle_stage)
-            experiments.append(experiment)
-        return experiments
-
-    def list_experiments(self, view_type: str = ViewType.ACTIVE_ONLY) -> List[Experiment]:
-        return [exp.to_mlflow_entity() for exp in
-                self._list_experiments(view_type=view_type)]

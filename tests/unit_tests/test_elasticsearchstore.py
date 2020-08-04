@@ -155,6 +155,7 @@ def test__search_runs(search_filter_mock, create_store):
                          experiment_id=r.experiment_id, user_id=r.user_id,
                          status=r.status,
                          start_time=r.start_time,
+                         end_time=None,
                          lifecycle_stage=r.lifecycle_stage, artifact_uri=r.artifact_uri,
                          metrics=metrics, params=params, tags=tags
                          )
