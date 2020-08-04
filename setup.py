@@ -48,5 +48,12 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     classifiers=CLASSIFIERS,
     keywords="mlflow",
-    url="https://github.com/criteo/mlflow-elasticsearchstore"
+    url="https://github.com/criteo/mlflow-elasticsearchstore",
+    # Require MLflow as a dependency of the plugin, so that plugin users can simply install
+    # the plugin and then immediately use it with MLflow
+    entry_points={
+        # Define a Tracking Store plugin for tracking URIs with scheme 'file-plugin'
+        "mlflow.tracking_store": "file-plugin=mlflow_elasticsearchstore." /
+        "elasticsearch_store:ElasticsearchStore",
+    },
 )

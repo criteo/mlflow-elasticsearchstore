@@ -1,3 +1,4 @@
+import datetime
 from elasticsearch_dsl import Document, InnerDoc, Nested, Text, Keyword, Float, Integer, Date
 
 from mlflow.entities import (Experiment, RunTag, Metric, Param,
@@ -21,10 +22,10 @@ class ElasticExperiment(Document):
 
     class Index:
         name = 'mlflow-experiments'
-        settings = {
-            "number_of_shards": 1,
-            "number_of_replicas": 1
-        }
+        # settings = {
+        #     "number_of_shards": 1,
+        #     "number_of_replicas": 1
+        # }
 
     def to_mlflow_entity(self) -> Experiment:
         return Experiment(
@@ -38,7 +39,7 @@ class ElasticExperiment(Document):
 class ElasticMetric(InnerDoc):
     key = Keyword()
     value = Float()
-    timestamp = Date()
+    timestamp = Integer()
     step = Integer()
 
     def to_mlflow_entity(self) -> Metric:
@@ -52,7 +53,7 @@ class ElasticMetric(InnerDoc):
 class ElasticLatestMetric(InnerDoc):
     key = Keyword()
     value = Float()
-    timestamp = Date()
+    timestamp = Integer()
     step = Integer()
 
 
@@ -83,8 +84,8 @@ class ElasticRun(Document):
     experiment_id = Keyword()
     user_id = Keyword()
     status = Keyword()
-    start_time = Date()
-    end_time = Date()
+    start_time = Integer()
+    end_time = Integer()
     source_version = Keyword()
     lifecycle_stage = Keyword()
     artifact_uri = Text()
@@ -95,10 +96,10 @@ class ElasticRun(Document):
 
     class Index:
         name = 'mlflow-runs'
-        settings = {
-            "number_of_shards": 2,
-            "number_of_replicas": 2
-        }
+        # settings = {
+        #     "number_of_shards": 2,
+        #     "number_of_replicas": 2
+        # }
 
     def to_mlflow_entity(self) -> Run:
         run_info = RunInfo(

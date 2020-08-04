@@ -1,0 +1,4 @@
+artifact_location: artifact_location
+experiment_id: '1'
+lifecycle_stage: active
+name: experiment_name

@@ -122,7 +122,7 @@ def test_set_tag(elastic_run_get_mock, create_store):
 
 @mock.patch('elasticsearch_dsl.Search.filter')
 @pytest.mark.usefixtures('create_store')
-def test_search_runs(search_filter_mock, create_store):
+def test__search_runs(search_filter_mock, create_store):
     m = SimpleNamespace(**{"key": "metric1", "value": 1, "timestamp": 1, "step": 1})
     p = SimpleNamespace(**{"key": "param1", "value": "val1"})
     t = SimpleNamespace(**{"key": "tag1", "value": "val1"})
@@ -134,7 +134,7 @@ def test_search_runs(search_filter_mock, create_store):
     response = [SimpleNamespace(**hit)]
     search_filter_mock.return_value = Search()
     search_filter_mock.return_value.execute = mock.MagicMock(return_value=response)
-    real_runs = create_store.search_runs(["1"])
+    real_runs, token = create_store._search_runs(["1"])
     search_filter_mock.assert_called_once_with("match", experiment_id="1")
     search_filter_mock.return_value.execute.assert_called_once_with()
 
