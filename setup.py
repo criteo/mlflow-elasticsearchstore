@@ -55,5 +55,5 @@ setuptools.setup(
         # Define a Tracking Store plugin for tracking URIs with scheme 'file-plugin'
         "mlflow.tracking_store": "file-plugin=mlflow_elasticsearchstore." /
         "elasticsearch_store:ElasticsearchStore",
-    },
+    }
 )

@@ -1,10 +1,8 @@
 import pytest
 import mock
-from types import SimpleNamespace
 
 from mlflow.entities import (Experiment, Run, RunInfo, RunData, RunTag, Metric,
                              Param, RunStatus, LifecycleStage)
-from mlflow.tracking import MlflowClient
 
 experiment = Experiment(experiment_id="1",
                         name="experiment_name",

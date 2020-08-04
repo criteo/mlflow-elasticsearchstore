@@ -22,10 +22,10 @@ class ElasticExperiment(Document):
 
     class Index:
         name = 'mlflow-experiments'
-        # settings = {
-        #     "number_of_shards": 1,
-        #     "number_of_replicas": 1
-        # }
+        settings = {
+            "number_of_shards": 1,
+            "number_of_replicas": 1
+        }
 
     def to_mlflow_entity(self) -> Experiment:
         return Experiment(
@@ -96,10 +96,10 @@ class ElasticRun(Document):
 
     class Index:
         name = 'mlflow-runs'
-        # settings = {
-        #     "number_of_shards": 2,
-        #     "number_of_replicas": 2
-        # }
+        settings = {
+            "number_of_shards": 2,
+            "number_of_replicas": 2
+        }
 
     def to_mlflow_entity(self) -> Run:
         run_info = RunInfo(
