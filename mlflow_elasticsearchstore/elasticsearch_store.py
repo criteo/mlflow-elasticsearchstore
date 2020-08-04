@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import List, Tuple
 from elasticsearch_dsl import Search, connections
 import time
 
@@ -91,10 +91,11 @@ class ElasticsearchStore(AbstractStore):
         run.save()
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str = None,
-                     run_view_type: str = None, max_results: int = None, order_by: str = None,
-                     page_token: str = None, columns_to_whitelist: List[str] = None) -> List[Run]:
+                     run_view_type: str = None, max_results: int = None,
+                     order_by: str = None, page_token: str = None,
+                     columns_to_whitelist: List[str] = None) -> Tuple[List[Run], str]:
 
-        def compute_next_token(current_size):
+        def compute_next_token(current_size: int) -> str:
             next_token = None
             if max_results == current_size:
                 final_offset = offset + max_results
@@ -130,7 +131,7 @@ class ElasticsearchStore(AbstractStore):
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
 
-    def _list_experiments(self, view_type=ViewType.ACTIVE_ONLY):
+    def _list_experiments(self, view_type: str = ViewType.ACTIVE_ONLY) -> List[ElasticExperiment]:
         print(view_type)
         response = Search(index="mlflow-experiments").execute()
         experiments = []
@@ -143,6 +144,6 @@ class ElasticsearchStore(AbstractStore):
             experiments.append(experiment)
         return experiments
 
-    def list_experiments(self, view_type=ViewType.ACTIVE_ONLY):
+    def list_experiments(self, view_type: str = ViewType.ACTIVE_ONLY) -> List[Experiment]:
         return [exp.to_mlflow_entity() for exp in
                 self._list_experiments(view_type=view_type)]
