@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Tuple
+from typing import List, Tuple, Any
 from elasticsearch_dsl import Search, connections
 import time
 from six.moves import urllib
@@ -26,7 +26,7 @@ class ElasticsearchStore(AbstractStore):
         connections.create_connection(hosts=[urllib.parse.urlparse(store_uri).netloc])
         super(ElasticsearchStore, self).__init__()
 
-    def hit_to_mlflow(self, model, **kwargs):
+    def hit_to_mlflow(self, model: Any, **kwargs: Any) -> Any:
         return model(**kwargs)
 
     def list_experiments(self, view_type: str = ViewType.ACTIVE_ONLY) -> List[Experiment]:
