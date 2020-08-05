@@ -48,6 +48,27 @@ def test_get_experiment(get_experiment_mock, create_mlflow_client):
     assert real_experiment == experiment
 
 
+@mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.delete_experiment")
+@pytest.mark.usefixtures('create_mlflow_client')
+def test_delete_experiment(delete_experiment_mock, create_mlflow_client):
+    create_mlflow_client.delete_experiment("1")
+    delete_experiment_mock.assert_called_once_with("1")
+
+
+@mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.restore_experiment")
+@pytest.mark.usefixtures('create_mlflow_client')
+def test_restore_experiment(restore_experiment_mock, create_mlflow_client):
+    create_mlflow_client.restore_experiment("1")
+    restore_experiment_mock.assert_called_once_with("1")
+
+
+@mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.rename_experiment")
+@pytest.mark.usefixtures('create_mlflow_client')
+def test_rename_experiment(rename_experiment_mock, create_mlflow_client):
+    create_mlflow_client.rename_experiment("1", "new_name")
+    rename_experiment_mock.assert_called_once_with("1", "new_name")
+
+
 @mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.create_run")
 @pytest.mark.usefixtures('create_mlflow_client')
 def test_create_run(create_run_mock, create_mlflow_client):

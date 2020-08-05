@@ -62,6 +62,16 @@ def test_create_run(uuid_mock, elastic_experiment_get_mock,
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
 @pytest.mark.usefixtures('create_store')
+def test_update_run_info(elastic_run_get_mock, create_store):
+    elastic_run_get_mock.return_value = run
+    run.update = mock.MagicMock()
+    create_store.update_run_info("1", RunStatus.FINISHED, 2)
+    run.update.assert_called_once_with(
+        status=RunStatus.to_string(RunStatus.FINISHED), end_time=2)
+
+
+@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+@pytest.mark.usefixtures('create_store')
 def test__get_run(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     real_run = create_store._get_run("1")

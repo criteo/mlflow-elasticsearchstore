@@ -71,9 +71,21 @@ class ElasticsearchStore(AbstractStore):
         experiment.save()
         return str(experiment.meta.id)
 
-    def get_experiment(self, experiment_id: str) -> Experiment:
+    def _get_experiment(self, experiment_id: str) -> ElasticExperiment:
         experiment = ElasticExperiment.get(id=experiment_id)
-        return experiment.to_mlflow_entity()
+        return experiment
+
+    def get_experiment(self, experiment_id: str) -> Experiment:
+        return self._get_experiment(experiment_id).to_mlflow_entity()
+
+    def delete_experiment(self, experiment_id: str) -> None:
+        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.DELETED)
+
+    def restore_experiment(self, experiment_id: str) -> None:
+        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.ACTIVE)
+
+    def rename_experiment(self, experiment_id: str, new_name: str) -> None:
+        self._get_experiment(experiment_id).update(name=new_name)
 
     def create_run(self, experiment_id: str, user_id: str,
                    start_time: int, tags: List[RunTag]) -> Run:
@@ -95,6 +107,18 @@ class ElasticsearchStore(AbstractStore):
         run.save()
         return run.to_mlflow_entity()
 
+    def _check_run_is_active(self, run: Run) -> None:
+        if run.lifecycle_stage != LifecycleStage.ACTIVE:
+            raise MlflowException("The run {} must be in the 'active' state. Current state is {}."
+                                  .format(run.run_uuid, run.lifecycle_stage),
+                                  INVALID_PARAMETER_VALUE)
+
+    def update_run_info(self, run_id: str, run_status: RunStatus, end_time: int) -> RunInfo:
+        run = self._get_run(run_id)
+        self._check_run_is_active(run)
+        run.update(status=RunStatus.to_string(run_status), end_time=end_time)
+        return run.to_mlflow_entity()._info
+
     def get_run(self, run_id: str) -> Run:
         run = self._get_run(run_id=run_id)
         return run.to_mlflow_entity()
@@ -102,6 +126,9 @@ class ElasticsearchStore(AbstractStore):
     def _get_run(self, run_id: str) -> ElasticRun:
         run = ElasticRun.get(id=run_id)
         return run
+
+    def delete_run(self, run_id: str) -> None:
+        self._get_run(run_id).update(lifecycle_stage=LifecycleStage.DELETED)
 
     def log_metric(self, run_id: str, metric: Metric) -> None:
         run = self._get_run(run_id=run_id)
