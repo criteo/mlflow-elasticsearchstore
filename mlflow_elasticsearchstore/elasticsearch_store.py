@@ -1,6 +1,6 @@
 import uuid
 from typing import List, Tuple, Any
-from elasticsearch_dsl import Search, connections
+from elasticsearch_dsl import Search, connections, Hit
 import time
 from six.moves import urllib
 
@@ -26,12 +26,12 @@ class ElasticsearchStore(AbstractStore):
         connections.create_connection(hosts=[urllib.parse.urlparse(store_uri).netloc])
         super(ElasticsearchStore, self).__init__()
 
-    def _hit_to_mlflow_experiment(self, hit: Any) -> Experiment:
+    def _hit_to_mlflow_experiment(self, hit: Hit) -> Experiment:
         return Experiment(experiment_id=hit.meta.id, name=hit.name,
                           artifact_location=hit.artifact_location,
                           lifecycle_stage=hit.lifecycle_stage)
 
-    def _hit_to_mlflow_run(self, hit: Any) -> Run:
+    def _hit_to_mlflow_run(self, hit: Hit) -> Run:
         return Run(run_info=self._hit_to_mlflow_run_info(hit),
                    run_data=self._hit_to_mlflow_run_data(hit))
 
@@ -42,19 +42,19 @@ class ElasticsearchStore(AbstractStore):
                        end_time=hit.end_time if hasattr(hit, 'end_time') else None,
                        lifecycle_stage=hit.lifecycle_stage, artifact_uri=hit.artifact_uri)
 
-    def _hit_to_mlflow_run_data(self, hit: Any) -> RunData:
+    def _hit_to_mlflow_run_data(self, hit: Hit) -> RunData:
         return RunData(metrics=[self._hit_to_mlflow_metric(m) for m in hit.metrics],
                        params=[self._hit_to_mlflow_param(p) for p in hit.params],
                        tags=[self._hit_to_mlflow_tag(t) for t in hit.tags])
 
-    def _hit_to_mlflow_metric(self, hit: Any) -> Metric:
+    def _hit_to_mlflow_metric(self, hit: Hit) -> Metric:
         return Metric(key=hit.key, value=hit.value, timestamp=hit.timestamp,
                       step=hit.step)
 
-    def _hit_to_mlflow_param(self, hit: Any) -> Param:
+    def _hit_to_mlflow_param(self, hit: Hit) -> Param:
         return Param(key=hit.key, value=hit.value)
 
-    def _hit_to_mlflow_tag(self, hit: Any) -> RunTag:
+    def _hit_to_mlflow_tag(self, hit: Hit) -> RunTag:
         return RunTag(key=hit.key, value=hit.value)
 
     def list_experiments(self, view_type: str = ViewType.ACTIVE_ONLY) -> List[Experiment]:
