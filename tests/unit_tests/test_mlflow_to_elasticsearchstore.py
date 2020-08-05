@@ -95,6 +95,20 @@ def test_get_run(get_run_mock, create_mlflow_client):
     assert real_run == run
 
 
+@mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.delete_run")
+@pytest.mark.usefixtures('create_mlflow_client')
+def test_delete_run(delete_run_mock, create_mlflow_client):
+    create_mlflow_client.delete_run("1")
+    delete_run_mock.assert_called_once_with("1")
+
+
+@mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.restore_run")
+@pytest.mark.usefixtures('create_mlflow_client')
+def test_restore_run(restore_run_mock, create_mlflow_client):
+    create_mlflow_client.restore_run("1")
+    restore_run_mock.assert_called_once_with("1")
+
+
 @mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.log_metric")
 @pytest.mark.usefixtures('create_mlflow_client')
 def test_log_metric(log_metric_mock, create_mlflow_client):
