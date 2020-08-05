@@ -22,6 +22,16 @@ run = ElasticRun(meta={'id': "1"},
                  params=[ElasticParam(key="param1", value="val1")],
                  tags=[ElasticTag(key="tag1", value="val1")])
 
+deleted_run = ElasticRun(meta={'id': "1"},
+                         experiment_id="experiment_id", user_id="user_id",
+                         status=RunStatus.to_string(RunStatus.RUNNING),
+                         start_time=1, end_time=None,
+                         lifecycle_stage=LifecycleStage.DELETED,
+                         artifact_uri="artifact_location",
+                         metrics=[ElasticMetric(key="metric1", value=1, timestamp=1, step=1)],
+                         params=[ElasticParam(key="param1", value="val1")],
+                         tags=[ElasticTag(key="tag1", value="val1")])
+
 elastic_metric = ElasticMetric(key="metric2", value=2, timestamp=1, step=1)
 metric = Metric(key="metric2", value=2, timestamp=1, step=1)
 
@@ -61,7 +71,7 @@ def test_get_experiment(elastic_experiment_get_mock, create_store):
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
 @pytest.mark.usefixtures('create_store')
-def test_delete_experiment_info(elastic_experiment_get_mock, create_store):
+def test_delete_experiment(elastic_experiment_get_mock, create_store):
     elastic_experiment_get_mock.return_value = experiment
     experiment.update = mock.MagicMock()
     create_store.delete_experiment("1")
@@ -71,7 +81,7 @@ def test_delete_experiment_info(elastic_experiment_get_mock, create_store):
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
 @pytest.mark.usefixtures('create_store')
-def test_restore_experiment_info(elastic_experiment_get_mock, create_store):
+def test_restore_experiment(elastic_experiment_get_mock, create_store):
     elastic_experiment_get_mock.return_value = experiment
     experiment.update = mock.MagicMock()
     create_store.restore_experiment("1")
@@ -81,7 +91,7 @@ def test_restore_experiment_info(elastic_experiment_get_mock, create_store):
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
 @pytest.mark.usefixtures('create_store')
-def test_rename_experiment_info(elastic_experiment_get_mock, create_store):
+def test_rename_experiment(elastic_experiment_get_mock, create_store):
     elastic_experiment_get_mock.return_value = experiment
     experiment.update = mock.MagicMock()
     create_store.rename_experiment("1", "new_name")
@@ -106,6 +116,26 @@ def test_create_run(uuid_mock, elastic_experiment_get_mock,
     assert real_run._info.start_time == 1
     assert real_run._data.tags == {}
     assert real_run._info.run_id == "run_id"
+
+
+@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+@pytest.mark.usefixtures('create_store')
+def test_delete_run(elastic_run_get_mock, create_store):
+    elastic_run_get_mock.return_value = run
+    run.update = mock.MagicMock()
+    create_store.delete_run("1")
+    elastic_run_get_mock.assert_called_once_with(id="1")
+    run.update.assert_called_once_with(lifecycle_stage=LifecycleStage.DELETED)
+
+
+@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+@pytest.mark.usefixtures('create_store')
+def test_restore_run(elastic_run_get_mock, create_store):
+    elastic_run_get_mock.return_value = deleted_run
+    deleted_run.update = mock.MagicMock()
+    create_store.restore_run("1")
+    elastic_run_get_mock.assert_called_once_with(id="1")
+    deleted_run.update.assert_called_once_with(lifecycle_stage=LifecycleStage.ACTIVE)
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')

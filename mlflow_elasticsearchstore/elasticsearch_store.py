@@ -107,10 +107,16 @@ class ElasticsearchStore(AbstractStore):
         run.save()
         return run.to_mlflow_entity()
 
-    def _check_run_is_active(self, run: Run) -> None:
+    def _check_run_is_active(self, run: ElasticRun) -> None:
         if run.lifecycle_stage != LifecycleStage.ACTIVE:
             raise MlflowException("The run {} must be in the 'active' state. Current state is {}."
-                                  .format(run.run_uuid, run.lifecycle_stage),
+                                  .format(run.meta.id, run.lifecycle_stage),
+                                  INVALID_PARAMETER_VALUE)
+
+    def _check_run_is_deleted(self, run: ElasticRun) -> None:
+        if run.lifecycle_stage != LifecycleStage.DELETED:
+            raise MlflowException("The run {} must be in the 'deleted' state. Current state is {}."
+                                  .format(run.meta.id, run.lifecycle_stage),
                                   INVALID_PARAMETER_VALUE)
 
     def update_run_info(self, run_id: str, run_status: RunStatus, end_time: int) -> RunInfo:
@@ -128,7 +134,14 @@ class ElasticsearchStore(AbstractStore):
         return run
 
     def delete_run(self, run_id: str) -> None:
-        self._get_run(run_id).update(lifecycle_stage=LifecycleStage.DELETED)
+        run = self._get_run(run_id)
+        self._check_run_is_active(run)
+        run.update(lifecycle_stage=LifecycleStage.DELETED)
+
+    def restore_run(self, run_id: str) -> None:
+        run = self._get_run(run_id)
+        self._check_run_is_deleted(run)
+        run.update(lifecycle_stage=LifecycleStage.ACTIVE)
 
     def log_metric(self, run_id: str, metric: Metric) -> None:
         run = self._get_run(run_id=run_id)
