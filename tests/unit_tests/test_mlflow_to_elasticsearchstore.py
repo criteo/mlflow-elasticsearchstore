@@ -2,7 +2,7 @@ import pytest
 import mock
 
 from mlflow.entities import (Experiment, Run, RunInfo, RunData, RunTag, Metric,
-                             Param, RunStatus, LifecycleStage)
+                             Param, RunStatus, LifecycleStage, ViewType)
 
 experiment = Experiment(experiment_id="1",
                         name="experiment_name",
@@ -27,6 +27,13 @@ metric = Metric(key="metric1", value=1, timestamp=1, step=1)
 param = Param(key="param1", value="val1")
 
 tag = RunTag(key="tag1", value="val1")
+
+
+@mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.list_experiments")
+@pytest.mark.usefixtures('create_mlflow_client')
+def test_list_experiments(list_experiments_mock, create_mlflow_client):
+    create_mlflow_client.list_experiments(ViewType.ACTIVE_ONLY)
+    list_experiments_mock.assert_called_once_with(view_type=ViewType.ACTIVE_ONLY)
 
 
 @mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.create_experiment")
