@@ -3,15 +3,19 @@ import mock
 from types import SimpleNamespace
 from elasticsearch_dsl import Search
 
-from mlflow.entities import RunTag, Metric, Param, RunStatus, LifecycleStage, ViewType
+from mlflow.entities import (RunTag, Metric, Param, RunStatus,
+                             LifecycleStage, ViewType, ExperimentTag)
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
-from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun,
-                                              ElasticMetric, ElasticParam, ElasticTag)
+from mlflow_elasticsearchstore.models import (
+    ElasticExperiment, ElasticRun, ElasticMetric, ElasticParam, ElasticTag, ElasticExperimentTag)
 
 experiment = ElasticExperiment(meta={'id': "1"}, name="name",
                                lifecycle_stage=LifecycleStage.ACTIVE,
                                artifact_location="artifact_location")
+
+experiment_tag = ExperimentTag(key="tag1", value="val1")
+elastic_experiment_tag = ElasticExperimentTag(key="tag1", value="val1")
 
 run = ElasticRun(meta={'id': "1"},
                  experiment_id="experiment_id", user_id="user_id",
@@ -194,6 +198,19 @@ def test_log_param(elastic_run_get_mock, create_store):
     elastic_run_get_mock.assert_called_once_with(id="1")
     run.params.append.assert_called_once_with(elastic_param)
     run.save.assert_called_once_with()
+
+
+@mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
+@pytest.mark.usefixtures('create_store')
+def test_set_experiment_tag(elastic_experiment_get_mock, create_store):
+    elastic_experiment_get_mock.return_value = experiment
+    experiment.tags = mock.MagicMock()
+    experiment.tags.append = mock.MagicMock()
+    experiment.save = mock.MagicMock()
+    create_store.set_experiment_tag("1", experiment_tag)
+    elastic_experiment_get_mock.assert_called_once_with(id="1")
+    experiment.tags.append.assert_called_once_with(elastic_experiment_tag)
+    experiment.save.assert_called_once_with()
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')

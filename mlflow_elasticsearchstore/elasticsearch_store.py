@@ -7,13 +7,13 @@ from six.moves import urllib
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData,
-                             RunStatus, Run, LifecycleStage, ViewType)
+                             RunStatus, Run, ExperimentTag, LifecycleStage, ViewType)
 from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
 from mlflow.utils.search_utils import SearchUtils
 
 from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun, ElasticMetric,
-                                              ElasticParam, ElasticTag)
+                                              ElasticParam, ElasticTag, ElasticExperimentTag)
 
 
 class ElasticsearchStore(AbstractStore):
@@ -158,6 +158,12 @@ class ElasticsearchStore(AbstractStore):
                                  value=param.value)
         run.params.append(new_param)
         run.save()
+
+    def set_experiment_tag(self, experiment_id: str, tag: ExperimentTag) -> None:
+        experiment = self._get_experiment(experiment_id)
+        new_tag = ElasticExperimentTag(key=tag.key, value=tag.value)
+        experiment.tags.append(new_tag)
+        experiment.save()
 
     def set_tag(self, run_id: str, tag: RunTag) -> None:
         run = self._get_run(run_id=run_id)
