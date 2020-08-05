@@ -26,16 +26,42 @@ class ElasticsearchStore(AbstractStore):
         connections.create_connection(hosts=[urllib.parse.urlparse(store_uri).netloc])
         super(ElasticsearchStore, self).__init__()
 
-    def hit_to_mlflow(self, model: Any, **kwargs: Any) -> Any:
-        return model(**kwargs)
+    def _hit_to_mlflow_experiment(self, hit: Any) -> Experiment:
+        return Experiment(experiment_id=hit.meta.id, name=hit.name,
+                          artifact_location=hit.artifact_location,
+                          lifecycle_stage=hit.lifecycle_stage)
+
+    def _hit_to_mlflow_run(self, hit: Any) -> Run:
+        return Run(run_info=self._hit_to_mlflow_run_info(hit),
+                   run_data=self._hit_to_mlflow_run_data(hit))
+
+    def _hit_to_mlflow_run_info(self, hit: Any) -> RunInfo:
+        return RunInfo(run_uuid=hit.meta.id, run_id=hit.meta.id,
+                       experiment_id=str(hit.experiment_id), user_id=hit.user_id,
+                       status=hit.status, start_time=hit.start_time,
+                       end_time=hit.end_time if hasattr(hit, 'end_time') else None,
+                       lifecycle_stage=hit.lifecycle_stage, artifact_uri=hit.artifact_uri)
+
+    def _hit_to_mlflow_run_data(self, hit: Any) -> RunData:
+        return RunData(metrics=[self._hit_to_mlflow_metric(m) for m in hit.metrics],
+                       params=[self._hit_to_mlflow_param(p) for p in hit.params],
+                       tags=[self._hit_to_mlflow_tag(t) for t in hit.tags])
+
+    def _hit_to_mlflow_metric(self, hit: Any) -> Metric:
+        return Metric(key=hit.key, value=hit.value, timestamp=hit.timestamp,
+                      step=hit.step)
+
+    def _hit_to_mlflow_param(self, hit: Any) -> Param:
+        return Param(key=hit.key, value=hit.value)
+
+    def _hit_to_mlflow_tag(self, hit: Any) -> RunTag:
+        return RunTag(key=hit.key, value=hit.value)
 
     def list_experiments(self, view_type: str = ViewType.ACTIVE_ONLY) -> List[Experiment]:
         stages = LifecycleStage.view_type_to_stages(view_type)
         response = Search(index="mlflow-experiments").filter("terms",
                                                              lifecycle_stage=stages).execute()
-        return [self.hit_to_mlflow(Experiment, experiment_id=e.meta.id, name=e.name,
-                                   artifact_location=e.artifact_location,
-                                   lifecycle_stage=e.lifecycle_stage) for e in response]
+        return [self._hit_to_mlflow_experiment(e) for e in response]
 
     def create_experiment(self, name: str, artifact_location: str = None) -> str:
         if name is None or name == '':
@@ -118,17 +144,6 @@ class ElasticsearchStore(AbstractStore):
         runs = []
         offset = SearchUtils.parse_start_offset_from_page_token(page_token)
         for r in response:
-            metrics = [self.hit_to_mlflow(Metric, key=m.key, value=m.value,
-                                          timestamp=m.timestamp, step=m.step) for m in r.metrics]
-            params = [self.hit_to_mlflow(Param, key=p.key, value=p.value) for p in r.params]
-            tags = [self.hit_to_mlflow(RunTag, key=t.key, value=t.value) for t in r.tags]
-            run_data = self.hit_to_mlflow(RunData, metrics=metrics, params=params, tags=tags)
-            run_info = self.hit_to_mlflow(RunInfo, run_uuid=r.meta.id, run_id=r.meta.id,
-                                          experiment_id=str(r.experiment_id), user_id=r.user_id,
-                                          status=r.status, start_time=r.start_time,
-                                          end_time=r.end_time if hasattr(r, 'end_time') else None,
-                                          lifecycle_stage=r.lifecycle_stage,
-                                          artifact_uri=r.artifact_uri)
-            runs.append(self.hit_to_mlflow(Run, run_info=run_info, run_data=run_data))
+            runs.append(self._hit_to_mlflow_run(r))
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
