@@ -218,7 +218,6 @@ class ElasticsearchStore(AbstractStore):
             .filter('nested', inner_hits={"size": 100}, path="metrics",
                     query=Q('term', metrics__key=metric_key)).source("false").execute()
         return [self._hit_to_mlflow_metric(m["_source"]) for m in
-
                 response["hits"]["hits"][0].inner_hits.metrics.hits.hits]
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str = None,
