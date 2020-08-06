@@ -157,8 +157,8 @@ class ElasticsearchStore(AbstractStore):
         run.update(lifecycle_stage=LifecycleStage.ACTIVE)
 
     @staticmethod
-    def _update_latest_metric_if_necessary(new_metric, run):
-        def _compare_metrics(metric_a, metric_b):
+    def _update_latest_metric_if_necessary(new_metric: ElasticMetric, run: ElasticRun) -> None:
+        def _compare_metrics(metric_a: ElasticMetric, metric_b: dict) -> bool:
             return (metric_a.step, metric_a.timestamp, metric_a.value) > \
                    (metric_b["step"], metric_b["timestamp"], metric_b["value"])
         response = Search(index="mlflow-runs").filter("ids", values=[run.meta.id]) \
