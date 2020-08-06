@@ -7,7 +7,7 @@ from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE
-from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData,
+from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData, Columns,
                              RunStatus, Run, ExperimentTag, LifecycleStage, ViewType)
 from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
@@ -83,10 +83,16 @@ class ElasticsearchStore(AbstractStore):
         return self._get_experiment(experiment_id).to_mlflow_entity()
 
     def delete_experiment(self, experiment_id: str) -> None:
-        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.DELETED)
+        experiment = self._get_experiment(experiment_id)
+        if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
+            raise MlflowException('Cannot delete an already deleted experiment.', INVALID_STATE)
+        experiment.update(lifecycle_stage=LifecycleStage.DELETED)
 
     def restore_experiment(self, experiment_id: str) -> None:
-        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.ACTIVE)
+        experiment = self._get_experiment(experiment_id)
+        if experiment.lifecycle_stage != LifecycleStage.DELETED:
+            raise MlflowException('Cannot restore an active experiment.', INVALID_STATE)
+        experiment.update(lifecycle_stage=LifecycleStage.ACTIVE)
 
     def rename_experiment(self, experiment_id: str, new_name: str) -> None:
         experiment = self._get_experiment(experiment_id)
