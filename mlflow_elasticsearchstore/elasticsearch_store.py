@@ -1,4 +1,5 @@
 import uuid
+import math
 from typing import List, Tuple, Any
 from elasticsearch_dsl import Search, connections, Q
 import time
@@ -6,14 +7,15 @@ from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE
-from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData,
+from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData, Columns,
                              RunStatus, Run, ExperimentTag, LifecycleStage, ViewType)
 from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
 from mlflow.utils.search_utils import SearchUtils
 
 from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun, ElasticMetric,
-                                              ElasticParam, ElasticTag, ElasticExperimentTag)
+                                              ElasticParam, ElasticTag,
+                                              ElasticLatestMetric, ElasticExperimentTag)
 
 
 class ElasticsearchStore(AbstractStore):
@@ -81,10 +83,16 @@ class ElasticsearchStore(AbstractStore):
         return self._get_experiment(experiment_id).to_mlflow_entity()
 
     def delete_experiment(self, experiment_id: str) -> None:
-        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.DELETED)
+        experiment = self._get_experiment(experiment_id)
+        if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
+            raise MlflowException('Cannot delete an already deleted experiment.', INVALID_STATE)
+        experiment.update(lifecycle_stage=LifecycleStage.DELETED)
 
     def restore_experiment(self, experiment_id: str) -> None:
-        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.ACTIVE)
+        experiment = self._get_experiment(experiment_id)
+        if experiment.lifecycle_stage != LifecycleStage.DELETED:
+            raise MlflowException('Cannot restore an active experiment.', INVALID_STATE)
+        experiment.update(lifecycle_stage=LifecycleStage.ACTIVE)
 
     def rename_experiment(self, experiment_id: str, new_name: str) -> None:
         experiment = self._get_experiment(experiment_id)
@@ -148,12 +156,41 @@ class ElasticsearchStore(AbstractStore):
         self._check_run_is_deleted(run)
         run.update(lifecycle_stage=LifecycleStage.ACTIVE)
 
+    @staticmethod
+    def _update_latest_metric_if_necessary(new_metric, run):
+        def _compare_metrics(metric_a, metric_b):
+            return (metric_a.step, metric_a.timestamp, metric_a.value) > \
+                   (metric_b["step"], metric_b["timestamp"], metric_b["value"])
+        response = Search(index="mlflow-runs").filter("ids", values=[run.meta.id]) \
+            .filter('nested', inner_hits={}, path="latest_metrics",
+                    query=Q('term', latest_metrics__key=new_metric.key)) \
+            .source("false").execute()
+        new_latest_metric = ElasticLatestMetric(key=new_metric.key,
+                                                value=new_metric.value,
+                                                timestamp=new_metric.timestamp,
+                                                step=new_metric.step)
+        if len(response) == 0:
+            run.latest_metrics.append(new_latest_metric)
+        else:
+            latest_metric = response["hits"]["hits"][0].inner_hits. \
+                latest_metrics.hits.hits[0]["_source"]
+            if _compare_metrics(new_metric, latest_metric):
+                for i, last_met in enumerate(run.latest_metrics):
+                    if last_met.key == new_metric.key:
+                        run.latest_metrics[i] = new_latest_metric
+
     def log_metric(self, run_id: str, metric: Metric) -> None:
+        is_nan = math.isnan(metric.value)
+        if is_nan:
+            value = 0
+        else:
+            value = metric.value
         run = self._get_run(run_id=run_id)
         new_metric = ElasticMetric(key=metric.key,
-                                   value=metric.value,
+                                   value=value,
                                    timestamp=metric.timestamp,
                                    step=metric.step)
+        self._update_latest_metric_if_necessary(new_metric, run)
         run.metrics.append(new_metric)
         run.save()
 
