@@ -169,12 +169,9 @@ class ElasticsearchStore(AbstractStore):
         for i, latest_metric in enumerate(run.latest_metrics):
             if latest_metric.key == new_metric.key:
                 latest_metric_exist = True
-                print(latest_metric)
                 if _compare_metrics(new_latest_metric, latest_metric):
-                    print("update latest_metric")
                     run.latest_metrics[i] = new_latest_metric
         if not (latest_metric_exist):
-            print("create latest_metric")
             run.latest_metrics.append(new_latest_metric)
 
     def log_metric(self, run_id: str, metric: Metric) -> None:
