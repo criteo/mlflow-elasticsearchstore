@@ -13,6 +13,9 @@ from mlflow_elasticsearchstore.models import (
 experiment = ElasticExperiment(meta={'id': "1"}, name="name",
                                lifecycle_stage=LifecycleStage.ACTIVE,
                                artifact_location="artifact_location")
+deleted_experiment = ElasticExperiment(meta={'id': "1"}, name="name",
+                                       lifecycle_stage=LifecycleStage.DELETED,
+                                       artifact_location="artifact_location")
 
 experiment_tag = ExperimentTag(key="tag1", value="val1")
 elastic_experiment_tag = ElasticExperimentTag(key="tag1", value="val1")
@@ -86,11 +89,11 @@ def test_delete_experiment(elastic_experiment_get_mock, create_store):
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
 @pytest.mark.usefixtures('create_store')
 def test_restore_experiment(elastic_experiment_get_mock, create_store):
-    elastic_experiment_get_mock.return_value = experiment
-    experiment.update = mock.MagicMock()
+    elastic_experiment_get_mock.return_value = deleted_experiment
+    deleted_experiment.update = mock.MagicMock()
     create_store.restore_experiment("1")
     elastic_experiment_get_mock.assert_called_once_with(id="1")
-    experiment.update.assert_called_once_with(lifecycle_stage=LifecycleStage.ACTIVE)
+    deleted_experiment.update.assert_called_once_with(lifecycle_stage=LifecycleStage.ACTIVE)
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
