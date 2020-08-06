@@ -5,7 +5,7 @@ import time
 from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
-from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
+from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE
 from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData,
                              RunStatus, Run, ExperimentTag, LifecycleStage, ViewType)
 from mlflow.exceptions import MlflowException
@@ -81,13 +81,22 @@ class ElasticsearchStore(AbstractStore):
         return self._get_experiment(experiment_id).to_mlflow_entity()
 
     def delete_experiment(self, experiment_id: str) -> None:
-        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.DELETED)
+        experiment = self._get_experiment(experiment_id)
+        if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
+            raise MlflowException('Cannot delete an already deleted experiment.', INVALID_STATE)
+        experiment.update(lifecycle_stage=LifecycleStage.DELETED)
 
     def restore_experiment(self, experiment_id: str) -> None:
-        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.ACTIVE)
+        experiment = self._get_experiment(experiment_id)
+        if experiment.lifecycle_stage != LifecycleStage.DELETED:
+            raise MlflowException('Cannot restore an active experiment.', INVALID_STATE)
+        experiment.update(lifecycle_stage=LifecycleStage.ACTIVE)
 
     def rename_experiment(self, experiment_id: str, new_name: str) -> None:
-        self._get_experiment(experiment_id).update(name=new_name)
+        experiment = self._get_experiment(experiment_id)
+        if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
+            raise MlflowException('Cannot rename a non-active experiment.', INVALID_STATE)
+        experiment.update(name=new_name)
 
     def create_run(self, experiment_id: str, user_id: str,
                    start_time: int, tags: List[RunTag]) -> Run:
@@ -178,7 +187,6 @@ class ElasticsearchStore(AbstractStore):
         response = Search(index="mlflow-runs").filter("ids", values=[run_id]) \
             .filter('nested', inner_hits={"size": 100}, path="metrics",
                     query=Q('term', metrics__key=metric_key)).source("false").execute()
-        print(response.to_dict())
         return [self._hit_to_mlflow_metric(m._source) for m in
                 response["hits"]["hits"][0].inner_hits.metrics.hits.hits]
 
