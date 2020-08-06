@@ -1,6 +1,6 @@
 import uuid
 from typing import List, Tuple, Any
-from elasticsearch_dsl import Search, connections
+from elasticsearch_dsl import Search, connections, Q
 import time
 from six.moves import urllib
 
@@ -24,6 +24,8 @@ class ElasticsearchStore(AbstractStore):
     def __init__(self, store_uri: str = None, artifact_uri: str = None) -> None:
         self.is_plugin = True
         connections.create_connection(hosts=[urllib.parse.urlparse(store_uri).netloc])
+        ElasticExperiment.init()
+        ElasticRun.init()
         super(ElasticsearchStore, self).__init__()
 
     def _hit_to_mlflow_experiment(self, hit: Any) -> Experiment:
@@ -171,6 +173,14 @@ class ElasticsearchStore(AbstractStore):
                              value=tag.value)
         run.tags.append(new_tag)
         run.save()
+
+    def get_metric_history(self, run_id: str, metric_key: str) -> List[Metric]:
+        response = Search(index="mlflow-runs").filter("ids", values=[run_id]) \
+            .filter('nested', inner_hits={"size": 100}, path="metrics",
+                    query=Q('term', metrics__key=metric_key)).source("false").execute()
+        print(response.to_dict())
+        return [self._hit_to_mlflow_metric(m._source) for m in
+                response["hits"]["hits"][0].inner_hits.metrics.hits.hits]
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str = None,
                      run_view_type: str = None, max_results: int = None,

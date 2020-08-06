@@ -5,11 +5,14 @@ from elasticsearch_dsl import connections
 from mlflow.tracking import MlflowClient
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
+from mlflow_elasticsearchstore.models import ElasticExperiment, ElasticRun
 
 
 @pytest.fixture
 def create_store():
     connections.create_connection = mock.MagicMock()
+    ElasticExperiment.init = mock.MagicMock()
+    ElasticRun.init = mock.MagicMock()
     store = ElasticsearchStore("elasticsearch://store_uri", "artifact_uri")
     return store
 
