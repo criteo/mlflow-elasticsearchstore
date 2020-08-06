@@ -138,3 +138,10 @@ def test_set_experiment_tag(set_experiment_tag_mock, create_mlflow_client):
 def test_set_tag(set_tag_mock, create_mlflow_client):
     create_mlflow_client.set_tag("run_id", tag.key, tag.value)
     set_tag_mock.assert_called_once_with("run_id", tag)
+
+
+@mock.patch("mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.get_metric_history")
+@pytest.mark.usefixtures('create_mlflow_client')
+def test_get_metric_history(get_metric_history_mock, create_mlflow_client):
+    create_mlflow_client.get_metric_history("run_id", metric.key)
+    get_metric_history_mock.assert_called_once_with(run_id="run_id", metric_key=metric.key)
