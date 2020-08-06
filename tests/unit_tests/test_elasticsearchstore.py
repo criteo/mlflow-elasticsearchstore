@@ -21,9 +21,6 @@ deleted_experiment = ElasticExperiment(meta={'id': "1"}, name="name",
 experiment_tag = ExperimentTag(key="tag1", value="val1")
 elastic_experiment_tag = ElasticExperimentTag(key="tag1", value="val1")
 
-experiment_tag = ExperimentTag(key="tag1", value="val1")
-elastic_experiment_tag = ElasticExperimentTag(key="tag1", value="val1")
-
 run = ElasticRun(meta={'id': "1"},
                  experiment_id="experiment_id", user_id="user_id",
                  status=RunStatus.to_string(RunStatus.RUNNING),
