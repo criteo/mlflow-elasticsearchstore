@@ -158,26 +158,24 @@ class ElasticsearchStore(AbstractStore):
 
     @staticmethod
     def _update_latest_metric_if_necessary(new_metric: ElasticMetric, run: ElasticRun) -> None:
-        def _compare_metrics(metric_a: ElasticMetric, metric_b: dict) -> bool:
+        def _compare_metrics(metric_a: ElasticLatestMetric, metric_b: ElasticLatestMetric) -> bool:
             return (metric_a.step, metric_a.timestamp, metric_a.value) > \
-                   (metric_b["step"], metric_b["timestamp"], metric_b["value"])
-        response = Search(index="mlflow-runs").filter("ids", values=[run.meta.id]) \
-            .filter('nested', inner_hits={}, path="latest_metrics",
-                    query=Q('term', latest_metrics__key=new_metric.key)) \
-            .source("false").execute()
+                   (metric_b.step, metric_b.timestamp, metric_b.value)
         new_latest_metric = ElasticLatestMetric(key=new_metric.key,
                                                 value=new_metric.value,
                                                 timestamp=new_metric.timestamp,
                                                 step=new_metric.step)
-        if len(response) == 0:
+        latest_metric_exist = False
+        for i, latest_metric in enumerate(run.latest_metrics):
+            if latest_metric.key == new_metric.key:
+                latest_metric_exist = True
+                print(latest_metric)
+                if _compare_metrics(new_latest_metric, latest_metric):
+                    print("update latest_metric")
+                    run.latest_metrics[i] = new_latest_metric
+        if not (latest_metric_exist):
+            print("create latest_metric")
             run.latest_metrics.append(new_latest_metric)
-        else:
-            latest_metric = response["hits"]["hits"][0].inner_hits. \
-                latest_metrics.hits.hits[0]["_source"]
-            if _compare_metrics(new_metric, latest_metric):
-                for i, last_met in enumerate(run.latest_metrics):
-                    if last_met.key == new_metric.key:
-                        run.latest_metrics[i] = new_latest_metric
 
     def log_metric(self, run_id: str, metric: Metric) -> None:
         is_nan = math.isnan(metric.value)
@@ -218,7 +216,7 @@ class ElasticsearchStore(AbstractStore):
         response = Search(index="mlflow-runs").filter("ids", values=[run_id]) \
             .filter('nested', inner_hits={"size": 100}, path="metrics",
                     query=Q('term', metrics__key=metric_key)).source("false").execute()
-        return [self._hit_to_mlflow_metric(m._source) for m in
+        return [self._hit_to_mlflow_metric(m["_source"]) for m in
                 response["hits"]["hits"][0].inner_hits.metrics.hits.hits]
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str = None,
