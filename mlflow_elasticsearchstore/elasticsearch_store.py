@@ -81,16 +81,10 @@ class ElasticsearchStore(AbstractStore):
         return self._get_experiment(experiment_id).to_mlflow_entity()
 
     def delete_experiment(self, experiment_id: str) -> None:
-        experiment = self._get_experiment(experiment_id)
-        if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
-            raise MlflowException('Cannot delete an already deleted experiment.', INVALID_STATE)
-        experiment.update(lifecycle_stage=LifecycleStage.DELETED)
+        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.DELETED)
 
     def restore_experiment(self, experiment_id: str) -> None:
-        experiment = self._get_experiment(experiment_id)
-        if experiment.lifecycle_stage != LifecycleStage.DELETED:
-            raise MlflowException('Cannot restore an active experiment.', INVALID_STATE)
-        experiment.update(lifecycle_stage=LifecycleStage.ACTIVE)
+        self._get_experiment(experiment_id).update(lifecycle_stage=LifecycleStage.ACTIVE)
 
     def rename_experiment(self, experiment_id: str, new_name: str) -> None:
         experiment = self._get_experiment(experiment_id)
