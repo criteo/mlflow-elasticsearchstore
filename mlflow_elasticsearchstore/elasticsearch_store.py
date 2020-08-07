@@ -1,7 +1,7 @@
 import uuid
 import math
 from typing import List, Tuple, Any
-from elasticsearch_dsl import Search, connections, Q, A
+from elasticsearch_dsl import Search, connections, Q
 import time
 from six.moves import urllib
 
