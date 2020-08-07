@@ -7,8 +7,8 @@ from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE
-from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData, Columns,
-                             RunStatus, Run, ExperimentTag, LifecycleStage, ViewType)
+from mlflow.entities import (Experiment, RunTag, Metric, Param, Run, RunInfo, RunData,
+                             RunStatus, ExperimentTag, LifecycleStage, ViewType, Columns)
 from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
 from mlflow.utils.search_utils import SearchUtils
