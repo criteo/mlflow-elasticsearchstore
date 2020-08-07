@@ -1,13 +1,13 @@
 import uuid
 import math
 from typing import List, Tuple, Any
-from elasticsearch_dsl import Search, connections, Q
+from elasticsearch_dsl import Search, connections, Q, A
 import time
 from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE
-from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData,
+from mlflow.entities import (Experiment, RunTag, Metric, Param, RunInfo, RunData, Columns,
                              RunStatus, Run, ExperimentTag, LifecycleStage, ViewType)
 from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
@@ -215,6 +215,22 @@ class ElasticsearchStore(AbstractStore):
                     query=Q('term', metrics__key=metric_key)).source("false").execute()
         return [self._hit_to_mlflow_metric(m["_source"]) for m in
                 response["hits"]["hits"][0].inner_hits.metrics.hits.hits]
+
+    def list_all_columns(self, experiment_id: str, run_view_type: str) -> Columns:
+        stages = LifecycleStage.view_type_to_stages(run_view_type)
+        s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_id)\
+            .filter("terms", lifecycle_stage=stages)
+        s.aggs.bucket('latest_metrics', 'nested', path="latest_metrics") \
+            .bucket("latest_metrics_keys", "terms", field="latest_metrics.key")
+        s.aggs.bucket('params', 'nested', path="params") \
+            .bucket("params_keys", "terms", field="params.key")
+        s.aggs.bucket('tags', 'nested', path="tags") \
+            .bucket("tags_keys", "terms", field="tags.key")
+        response = s.execute()
+        metrics = [m.key for m in response.aggregations.latest_metrics.latest_metrics_keys.buckets]
+        params = [p.key for p in response.aggregations.params.params_keys.buckets]
+        tags = [t.key for t in response.aggregations.tags.tags_keys.buckets]
+        return Columns(metrics=metrics, params=params, tags=tags)
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str = None,
                      run_view_type: str = None, max_results: int = None,
