@@ -20,6 +20,7 @@ from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun, Ela
                                               ElasticLatestMetric, ElasticExperimentTag)
 
 
+
 class ElasticsearchStore(AbstractStore):
 
     ARTIFACTS_FOLDER_NAME = "artifacts"
@@ -284,7 +285,7 @@ class ElasticsearchStore(AbstractStore):
                                        {"term": {f'{key_type}.key': key}}}}})
             s = s.sort(*sort_clauses)
         return s
-
+      
     def _search_runs(self, experiment_ids: List[str], filter_string: str = None,
                      run_view_type: str = None, max_results: int = None,
                      order_by: List[str] = None, page_token: str = None,
