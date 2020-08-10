@@ -1,5 +1,6 @@
 import uuid
 import math
+import re
 from typing import List, Tuple, Any
 from elasticsearch_dsl import Search, connections, Q
 import time
@@ -221,7 +222,7 @@ class ElasticsearchStore(AbstractStore):
     def get_metric_history(self, run_id: str, metric_key: str) -> List[Metric]:
         response = Search(index="mlflow-runs").filter("ids", values=[run_id]) \
             .filter('nested', inner_hits={"size": 100}, path="metrics",
-                    query=Q('term', metrics__key=metric_key)).source("false").execute()
+                    query=Q('term', metrics__key=metric_key)).source(False).execute()
         return [self._hit_to_mlflow_metric(m["_source"]) for m in
                 response["hits"]["hits"][0].inner_hits.metrics.hits.hits]
 
@@ -267,9 +268,26 @@ class ElasticsearchStore(AbstractStore):
             s = s.filter('nested', path=type_dict[key_type], query=query)
         return s
 
+    def _get_orderby_clauses(self, order_by_list, s):
+        type_dict = {"metrics": "latest_metrics", "params": "params", "tags": "tags"}
+        if order_by_list:
+            sort_clauses = []
+            for order_by_clause in order_by_list:
+                order = re.match(
+                    r'(?P<key_type>.*).`(?P<key>.*)` (?P<sort_order>.*)', order_by_clause)
+                key_type = type_dict[order.group("key_type")]
+                key = order.group("key")
+                sort_order = order.group("sort_order").lower()
+                sort_clauses.append({f'{key_type}.value':
+                                     {'order': sort_order, "nested":
+                                      {"path": key_type, "filter":
+                                       {"term": {f'{key_type}.key': key}}}}})
+            s = s.sort(*sort_clauses)
+        return s
+
     def _search_runs(self, experiment_ids: List[str], filter_string: str = None,
                      run_view_type: str = None, max_results: int = None,
-                     order_by: str = None, page_token: str = None,
+                     order_by: List[str] = None, page_token: str = None,
                      columns_to_whitelist: List[str] = None) -> Tuple[List[Run], str]:
 
         def compute_next_token(current_size: int) -> str:
@@ -278,12 +296,6 @@ class ElasticsearchStore(AbstractStore):
                 final_offset = offset + max_results
                 next_token = SearchUtils.create_page_token(final_offset)
             return next_token
-        print("column_to_whitelist", columns_to_whitelist)
-        if columns_to_whitelist is not None:
-            columns_to_whitelist = list(columns_to_whitelist) + ["experiment_id", "artifact_uri",
-                                                                 "lifecycle_stage", "status", "user_id", "start_time"]
-
-        print("order_by", order_by)
         if max_results > SEARCH_MAX_RESULTS_THRESHOLD:
             raise MlflowException("Invalid value for request parameter max_results. It must be at "
                                   "most {}, but got value {}"
@@ -295,8 +307,8 @@ class ElasticsearchStore(AbstractStore):
         s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_ids[0]) \
             .filter("terms", lifecycle_stage=stages)
         s = self._build_elasticsearch_query(parsed_filters, s)
-        response = s.source(excludes=["metrics.*"],
-                            includes=columns_to_whitelist)[offset:offset + max_results].execute()
+        s = self._get_orderby_clauses(order_by, s)
+        response = s.source(excludes=["metrics.*"])[offset:offset + max_results].execute()
         runs = [self._hit_to_mlflow_run(r, use_latest_metrics=True) for r in response]
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
