@@ -280,8 +280,8 @@ class ElasticsearchStore(AbstractStore):
             return next_token
         print("column_to_whitelist", columns_to_whitelist)
         if columns_to_whitelist is not None:
-            columns_to_whitelist += ["experiment_id", "artifact_uri",
-                                     "lifecycle_stage", "status", "user_id", "start_time"]
+            columns_to_whitelist = list(columns_to_whitelist) + ["experiment_id", "artifact_uri",
+                                                                 "lifecycle_stage", "status", "user_id", "start_time"]
 
         print("order_by", order_by)
         if max_results > SEARCH_MAX_RESULTS_THRESHOLD:
