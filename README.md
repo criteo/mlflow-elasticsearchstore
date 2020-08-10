@@ -1,8 +1,8 @@
 # mlflow-elasticsearchstore
 
-Mlflow plugin to use Elaticsearch as Tracking Store in Mlflow. To use this plugin you need a running instance of Elasticsearch 6.8.
+Mlflow plugin to use Elaticsearch backend in the Tracking Store of Mlflow. To use this plugin you need a running instance of Elasticsearch 6.X.
 
-## Installation
+## Development
 
 In a python environment :
 
@@ -12,7 +12,7 @@ $ cd mlflow-elasticsearch
 $ pip install .
 ```
 
-## Launch 
+## How To 
 
 mlflow-elasticsearchstore can now be used with the entrypoint elasticsearch, in the same python environment : 
 
