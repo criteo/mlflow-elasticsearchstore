@@ -178,7 +178,7 @@ class ElasticsearchStore(AbstractStore):
     def log_metric(self, run_id: str, metric: Metric) -> None:
         is_nan = math.isnan(metric.value)
         if is_nan:
-            value = 0
+            value = 0.
         elif math.isinf(metric.value):
             value = 1.7976931348623157e308 if metric.value > 0 else -1.7976931348623157e308
         else:
