@@ -242,7 +242,7 @@ class ElasticsearchStore(AbstractStore):
         tags = [t.key for t in response.aggregations.tags.tags_keys.buckets]
         return Columns(metrics=metrics, params=params, tags=tags)
 
-    def _build_elasticsearch_query(self, parsed_filters, s):
+    def _build_elasticsearch_query(self, parsed_filters: List[dict], s: Search) -> Search:
         type_dict = {"metric": "latest_metrics", "parameter": "params", "tag": "tags"}
         for search_filter in parsed_filters:
             key_type = search_filter.get('type')
@@ -268,7 +268,7 @@ class ElasticsearchStore(AbstractStore):
             s = s.filter('nested', path=type_dict[key_type], query=query)
         return s
 
-    def _get_orderby_clauses(self, order_by_list, s):
+    def _get_orderby_clauses(self, order_by_list: List[str], s: Search) -> Search:
         type_dict = {"metrics": "latest_metrics", "params": "params", "tags": "tags"}
         if order_by_list:
             sort_clauses = []
