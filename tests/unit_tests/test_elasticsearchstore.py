@@ -240,52 +240,6 @@ def test_set_tag(elastic_run_get_mock, create_store):
     run.save.assert_called_once_with()
 
 
-@mock.patch('elasticsearch_dsl.Search.filter')
-@pytest.mark.usefixtures('create_store')
-def test__search_runs(search_filter_mock, create_store):
-    m = SimpleNamespace(**{"key": "metric1", "value": 1, "timestamp": 1, "step": 1})
-    p = SimpleNamespace(**{"key": "param1", "value": "val1"})
-    t = SimpleNamespace(**{"key": "tag1", "value": "val1"})
-    meta = SimpleNamespace(**{"id": "1"})
-    hit = {"meta": meta, "experiment_id": "1", "user_id": "user_id",
-           "status": RunStatus.to_string(RunStatus.RUNNING), "start_time": 1,
-           "lifecycle_stage": LifecycleStage.ACTIVE, "artifact_uri": "artifact_location",
-           "metrics": [m], "params": [p], "tags": [t]}
-    response = [SimpleNamespace(**hit)]
-    search_filter_mock.return_value = Search()
-    search_filter_mock.return_value.execute = mock.MagicMock(return_value=response)
-    real_runs, token = create_store._search_runs(["1"])
-    search_filter_mock.assert_called_once_with("match", experiment_id="1")
-    search_filter_mock.return_value.execute.assert_called_once_with()
-
-    for r in response:
-        metrics = []
-        params = []
-        tags = []
-        for m in r.metrics:
-            metrics.append(ElasticMetric(key=m.key,
-                                         value=m.value,
-                                         timestamp=m.timestamp,
-                                         step=m.step))
-        for p in r.params:
-            params.append(ElasticParam(key=p.key, value=p.value))
-        for t in r.tags:
-            tags.append(ElasticTag(key=t.key, value=t.value))
-        run = ElasticRun(meta={'id': r.meta.id},
-                         experiment_id=r.experiment_id, user_id=r.user_id,
-                         status=r.status,
-                         start_time=r.start_time,
-                         end_time=None,
-                         lifecycle_stage=r.lifecycle_stage, artifact_uri=r.artifact_uri,
-                         metrics=metrics, params=params, tags=tags
-                         )
-    runs = [run.to_mlflow_entity()]
-    assert real_runs[0]._info == runs[0]._info
-    assert real_runs[0]._data._metrics == runs[0]._data._metrics
-    assert real_runs[0]._data._params == runs[0]._data._params
-    assert real_runs[0]._data._tags == runs[0]._data.tags
-
-
 @pytest.mark.parametrize("test_elastic_metric,test_elastic_latest_metrics",
                          [(ElasticMetric(key="metric1", value=2, timestamp=1, step=2, is_nan=False),
                            [ElasticLatestMetric(key="metric1", value=2, timestamp=1,
