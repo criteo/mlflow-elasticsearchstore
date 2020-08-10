@@ -39,7 +39,7 @@ deleted_run = ElasticRun(meta={'id': "1"},
                          params=[ElasticParam(key="param1", value="val1")],
                          tags=[ElasticTag(key="tag1", value="val1")])
 
-elastic_metric = ElasticMetric(key="metric2", value=2, timestamp=1, step=1)
+elastic_metric = ElasticMetric(key="metric2", value=2, timestamp=1, step=1, is_nan=False)
 metric = Metric(key="metric2", value=2, timestamp=1, step=1)
 
 elastic_param = ElasticParam(key="param2", value="val2")
@@ -49,8 +49,8 @@ elastic_tag = ElasticTag(key="tag2", value="val2")
 tag = RunTag(key="tag2", value="val2")
 
 
-@mock.patch('elasticsearch_dsl.Search.filter')
-@pytest.mark.usefixtures('create_store')
+@ mock.patch('elasticsearch_dsl.Search.filter')
+@ pytest.mark.usefixtures('create_store')
 def test_list_experiments(search_filter_mock, create_store):
     meta = SimpleNamespace(**{"id": "1"})
     hit = {"meta": meta, "name": "name",

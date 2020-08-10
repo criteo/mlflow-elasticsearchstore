@@ -164,7 +164,8 @@ class ElasticsearchStore(AbstractStore):
         new_latest_metric = ElasticLatestMetric(key=new_metric.key,
                                                 value=new_metric.value,
                                                 timestamp=new_metric.timestamp,
-                                                step=new_metric.step)
+                                                step=new_metric.step,
+                                                is_nan=new_metric.is_nan)
         latest_metric_exist = False
         for i, latest_metric in enumerate(run.latest_metrics):
             if latest_metric.key == new_metric.key:
@@ -178,13 +179,16 @@ class ElasticsearchStore(AbstractStore):
         is_nan = math.isnan(metric.value)
         if is_nan:
             value = 0
+        elif math.isinf(metric.value):
+            value = 1.7976931348623157e308 if metric.value > 0 else -1.7976931348623157e308
         else:
             value = metric.value
         run = self._get_run(run_id=run_id)
         new_metric = ElasticMetric(key=metric.key,
                                    value=value,
                                    timestamp=metric.timestamp,
-                                   step=metric.step)
+                                   step=metric.step,
+                                   is_nan=is_nan)
         self._update_latest_metric_if_necessary(new_metric, run)
         run.metrics.append(new_metric)
         run.save()
