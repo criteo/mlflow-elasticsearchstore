@@ -69,7 +69,7 @@ class ElasticLatestMetric(InnerDoc):
 
 class ElasticParam(InnerDoc):
     key = Keyword()
-    value = Text()
+    value = Keyword()
 
     def to_mlflow_entity(self) -> Param:
         return Param(
@@ -79,7 +79,7 @@ class ElasticParam(InnerDoc):
 
 class ElasticTag(InnerDoc):
     key = Keyword()
-    value = Text()
+    value = Keyword()
 
     def to_mlflow_entity(self) -> RunTag:
         return RunTag(
