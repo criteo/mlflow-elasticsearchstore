@@ -263,9 +263,31 @@ def test__update_latest_metric_if_necessary(test_elastic_metric, test_elastic_la
                            Q("term", params__key="param0") &
                            Q('bool', must=[Q("wildcard", params__value="*va*")]),
                            "params"),
+                          ({'type': 'parameter', 'key': 'param0',
+                            'comparator': 'ILIKE', 'value': '%va%'},
+                           Q("term", params__key="param0") &
+                           Q('bool', must=[Q("wildcard", params__value="*va*")]),
+                           "params"),
+                          ({'type': 'parameter', 'key': 'param0',
+                            'comparator': '=', 'value': 'va'},
+                           Q("term", params__key="param0") &
+                           Q('bool', must=[Q("term", params__value="va")]),
+                           "params"),
                           ({'type': 'metric', 'key': 'metric0', 'comparator': '>', 'value': '1'},
                            Q("term", latest_metrics__key="metric0") &
                            Q('bool', must=[Q("range", latest_metrics__value={'gt': "1"})]),
+                           "latest_metrics"),
+                          ({'type': 'metric', 'key': 'metric0', 'comparator': '>=', 'value': '1'},
+                           Q("term", latest_metrics__key="metric0") &
+                           Q('bool', must=[Q("range", latest_metrics__value={'gte': "1"})]),
+                           "latest_metrics"),
+                          ({'type': 'metric', 'key': 'metric0', 'comparator': '<', 'value': '1'},
+                           Q("term", latest_metrics__key="metric0") &
+                           Q('bool', must=[Q("range", latest_metrics__value={'lt': "1"})]),
+                           "latest_metrics"),
+                          ({'type': 'metric', 'key': 'metric0', 'comparator': '<=', 'value': '1'},
+                           Q("term", latest_metrics__key="metric0") &
+                           Q('bool', must=[Q("range", latest_metrics__value={'lte': "1"})]),
                            "latest_metrics"),
                           ({'type': 'tag', 'key': 'tag0', 'comparator': '!=', 'value': 'val2'},
                            Q("term", tags__key="tag0") &

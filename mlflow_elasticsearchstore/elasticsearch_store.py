@@ -24,6 +24,16 @@ class ElasticsearchStore(AbstractStore):
 
     ARTIFACTS_FOLDER_NAME = "artifacts"
     DEFAULT_EXPERIMENT_ID = "0"
+    filter_key = {
+        ">": ["range", "must"],
+        ">=": ["range", "must"],
+        "=": ["term", "must"],
+        "!=": ["term", "must_not"],
+        "<=": ["range", "must"],
+        "<": ["range", "must"],
+        "LIKE": ["wildcard", "must"],
+        "ILIKE": ["wildcard", "must"]
+    }
 
     def __init__(self, store_uri: str = None, artifact_uri: str = None) -> None:
         self.is_plugin = True
@@ -44,22 +54,27 @@ class ElasticsearchStore(AbstractStore):
     def _hit_to_mlflow_run_info(self, hit: Any) -> RunInfo:
         return RunInfo(run_uuid=hit.meta.id, run_id=hit.meta.id,
                        experiment_id=str(hit.experiment_id),
-                       user_id=hit.user_id if hasattr(hit, 'user_id') else None,
+                       user_id=hit.user_id,
                        status=hit.status,
-                       start_time=hit.start_time if hasattr(hit, 'start_time') else None,
+                       start_time=hit.start_time,
                        end_time=hit.end_time if hasattr(hit, 'end_time') else None,
                        lifecycle_stage=hit.lifecycle_stage, artifact_uri=hit.artifact_uri)
 
     def _hit_to_mlflow_run_data(self, hit: Any, use_latest_metrics: bool) -> RunData:
-        return RunData(metrics=[self._hit_to_mlflow_metric(m) for m in
-                                (hit.latest_metrics if hasattr(hit, 'latest_metrics') else [])]
-                       if use_latest_metrics else
-                       [self._hit_to_mlflow_metric(m) for m in
-                        (hit.metrics if hasattr(hit, 'metrics') else [])],
-                       params=[self._hit_to_mlflow_param(p) for p in
-                               (hit.params if hasattr(hit, 'params') else [])],
-                       tags=[self._hit_to_mlflow_tag(t) for t in
-                             (hit.tags if hasattr(hit, 'tags') else [])])
+        if use_latest_metrics:
+            return RunData(metrics=[self._hit_to_mlflow_metric(m) for m in
+                                    (hit.latest_metrics if hasattr(hit, 'latest_metrics') else [])],
+                           params=[self._hit_to_mlflow_param(p) for p in
+                                   (hit.params if hasattr(hit, 'params') else [])],
+                           tags=[self._hit_to_mlflow_tag(t) for t in
+                                 (hit.tags if hasattr(hit, 'tags') else[])])
+        else:
+            return RunData(metrics=[self._hit_to_mlflow_metric(m) for m in
+                                    (hit.metrics if hasattr(hit, 'metrics') else [])],
+                           params=[self._hit_to_mlflow_param(p) for p in
+                                   (hit.params if hasattr(hit, 'params') else [])],
+                           tags=[self._hit_to_mlflow_tag(t) for t in
+                                 (hit.tags if hasattr(hit, 'tags') else[])])
 
     def _hit_to_mlflow_metric(self, hit: Any) -> Metric:
         return Metric(key=hit.key, value=hit.value, timestamp=hit.timestamp,
@@ -245,16 +260,6 @@ class ElasticsearchStore(AbstractStore):
 
     def _build_elasticsearch_query(self, parsed_filters: List[dict], s: Search) -> Search:
         type_dict = {"metric": "latest_metrics", "parameter": "params", "tag": "tags"}
-        filter_key = {
-            ">": ["range", "must"],
-            ">=": ["range", "must"],
-            "=": ["term", "must"],
-            "!=": ["term", "must_not"],
-            "<=": ["range", "must"],
-            "<": ["range", "must"],
-            "LIKE": ["wildcard", "must"],
-            "ILIKE": ["wildcard", "must_not"],
-        }
         for search_filter in parsed_filters:
             key_type = search_filter.get('type')
             key_name = search_filter.get('key')
@@ -268,20 +273,19 @@ class ElasticsearchStore(AbstractStore):
                 "<=": {'lte': value},
                 "<": {'lt': value}
             }
-            if comparator == "LIKE" or comparator == "ILIKE":
-                filter_ops["LIKE"] = f'*{value.split("%")[1]}*'
-                filter_ops["ILIKE"] = f'*{value.split("%")[1]}*'
+            if comparator in ["LIKE", "ILIKE"]:
+                filter_ops[comparator] = f'*{value.split("%")[1]}*'
             if key_type == "parameter":
                 query_type = Q("term", params__key=key_name)
-                query_val = Q(filter_key[comparator][0], params__value=filter_ops[comparator])
+                query_val = Q(self.filter_key[comparator][0], params__value=filter_ops[comparator])
             elif key_type == "tag":
                 query_type = Q("term", tags__key=key_name)
-                query_val = Q(filter_key[comparator][0], tags__value=filter_ops[comparator])
+                query_val = Q(self.filter_key[comparator][0], tags__value=filter_ops[comparator])
             elif key_type == "metric":
                 query_type = Q("term", latest_metrics__key=key_name)
-                query_val = Q(filter_key[comparator][0],
+                query_val = Q(self.filter_key[comparator][0],
                               latest_metrics__value=filter_ops[comparator])
-            if filter_key[comparator][1] == "must_not":
+            if self.filter_key[comparator][1] == "must_not":
                 query = query_type & Q('bool', must_not=[query_val])
             else:
                 query = query_type & Q('bool', must=[query_val])
