@@ -262,6 +262,7 @@ class ElasticsearchStore(AbstractStore):
             key_type = search_filter.get('type')
             key_name = search_filter.get('key')
             value = search_filter.get('value')
+            comparator = search_filter.get('comparator').upper()
             filter_ops = {
                 ">": {'gt': value},
                 ">=": {'gte': value},
@@ -270,7 +271,6 @@ class ElasticsearchStore(AbstractStore):
                 "<=": {'lte': value},
                 "<": {'lt': value}
             }
-            comparator = search_filter.get('comparator').upper()
             if comparator == "LIKE" or comparator == "ILIKE":
                 filter_ops["LIKE"] = f'*{value.split("%")[1]}*'
                 filter_ops["ILIKE"] = f'*{value.split("%")[1]}*'
