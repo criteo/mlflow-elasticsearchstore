@@ -257,24 +257,27 @@ def test__update_latest_metric_if_necessary(test_elastic_metric, test_elastic_la
     assert run.latest_metrics == test_elastic_latest_metrics
 
 
+@pytest.mark.parametrize("test_parsed_filter,test_query,test_type",
+                         [({'type': 'parameter', 'key': 'param0',
+                            'comparator': 'LIKE', 'value': '%va%'},
+                           Q("term", params__key="param0") &
+                           Q('bool', must=[Q("wildcard", params__value="*va*")]),
+                           "params"),
+                          ({'type': 'metric', 'key': 'metric0', 'comparator': '>', 'value': '1'},
+                           Q("term", latest_metrics__key="metric0") &
+                           Q('bool', must=[Q("range", latest_metrics__value={'gt': "1"})]),
+                           "latest_metrics"),
+                          ({'type': 'tag', 'key': 'tag0', 'comparator': '!=', 'value': 'val2'},
+                           Q("term", tags__key="tag0") &
+                           Q('bool', must_not=[Q("term", tags__value="val2")]),
+                           "tags")])
 @mock.patch('elasticsearch_dsl.Search.query')
 @pytest.mark.usefixtures('create_store')
-def test___build_elasticsearch_query(search_query_mock, create_store):
-    type_dict = ["params", "latest_metrics", "tags"]
-    parsed_filters = [{'type': 'parameter', 'key': 'param0', 'comparator': 'LIKE', 'value': '%va%'},
-                      {'type': 'metric', 'key': 'metric0', 'comparator': '>', 'value': '1'},
-                      {'type': 'tag', 'key': 'tag0', 'comparator': '!=', 'value': 'val2'}]
-    mock_queries = [Q("term", params__key="param0") &
-                    Q('bool', must=[Q("wildcard", params__value="*va*")]),
-                    Q("term", latest_metrics__key="metric0") &
-                    Q('bool', must=[Q("range", latest_metrics__value={'gt': "1"})]),
-                    Q("term", tags__key="tag0") &
-                    Q('bool', must_not=[Q("term", tags__value="val2")])
-                    ]
+def test___build_elasticsearch_query(search_query_mock, test_parsed_filter, test_query,
+                                     test_type, create_store):
     search_query_mock.return_value = Search()
-    for i, parsed_filter in enumerate(parsed_filters):
-        create_store._build_elasticsearch_query(parsed_filters=[parsed_filter], s=Search())
-        search_query_mock.assert_called_with('nested', path=type_dict[i], query=mock_queries[i])
+    create_store._build_elasticsearch_query(parsed_filters=[test_parsed_filter], s=Search())
+    search_query_mock.assert_called_with('nested', path=test_type, query=test_query)
 
 
 @mock.patch('elasticsearch_dsl.Search.sort')
