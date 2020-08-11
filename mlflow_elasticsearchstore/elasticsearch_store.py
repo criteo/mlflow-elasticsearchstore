@@ -248,28 +248,47 @@ class ElasticsearchStore(AbstractStore):
 
     def _build_elasticsearch_query(self, parsed_filters: List[dict], s: Search) -> Search:
         type_dict = {"metric": "latest_metrics", "parameter": "params", "tag": "tags"}
+        filter_key = {
+            ">": ["range", "must"],
+            ">=": ["range", "must"],
+            "=": ["term", "must"],
+            "!=": ["term", "must_not"],
+            "<=": ["range", "must"],
+            "<": ["range", "must"],
+            "LIKE": ["wildcard", "must"],
+            "ILIKE": ["wildcard", "must_not"],
+        }
         for search_filter in parsed_filters:
             key_type = search_filter.get('type')
             key_name = search_filter.get('key')
             value = search_filter.get('value')
+            filter_ops = {
+                ">": {'gt': value},
+                ">=": {'gte': value},
+                "=": value,
+                "!=": value,
+                "<=": {'lte': value},
+                "<": {'lt': value}
+            }
             comparator = search_filter.get('comparator').upper()
+            if comparator == "LIKE" or comparator == "ILIKE":
+                filter_ops["LIKE"] = f'*{value.split("%")[1]}*'
+                filter_ops["ILIKE"] = f'*{value.split("%")[1]}*'
             if key_type == "parameter":
-                query = Q("term", params__key=key_name) & Q("term", params__value=value)
+                query_type = Q("term", params__key=key_name)
+                query_val = Q(filter_key[comparator][0], params__value=filter_ops[comparator])
             elif key_type == "tag":
-                query = Q("term", tags__key=key_name) & Q("term", tags__value=value)
+                query_type = Q("term", tags__key=key_name)
+                query_val = Q(filter_key[comparator][0], tags__value=filter_ops[comparator])
             elif key_type == "metric":
-                query = Q("term", latest_metrics__key=key_name)
-                if comparator == "=":
-                    query = query & Q("term", latest_metrics__value=value)
-                elif comparator == ">":
-                    query = query & Q("range", latest_metrics__value={'gt': value})
-                elif comparator == ">=":
-                    query = query & Q("range", latest_metrics__value={'gte': value})
-                elif comparator == "<":
-                    query = query & Q("range", latest_metrics__value={'lt': value})
-                elif comparator == "<=":
-                    query = query & Q("range", latest_metrics__value={'lte': value})
-            s = s.filter('nested', path=type_dict[key_type], query=query)
+                query_type = Q("term", latest_metrics__key=key_name)
+                query_val = Q(filter_key[comparator][0],
+                              latest_metrics__value=filter_ops[comparator])
+            if filter_key[comparator][1] == "must_not":
+                query = query_type & Q('bool', must_not=[query_val])
+            else:
+                query = query_type & Q('bool', must=[query_val])
+            s = s.query('nested', path=type_dict[key_type], query=query)
         return s
 
     def _get_orderby_clauses(self, order_by_list: List[str], s: Search) -> Search:
