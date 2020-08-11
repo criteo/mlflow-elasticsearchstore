@@ -1,6 +1,6 @@
 # mlflow-elasticsearchstore
 
-Mlflow plugin to use Elaticsearch backend in the Tracking Store of Mlflow. To use this plugin you need a running instance of Elasticsearch 6.X.
+Mlflow plugin to use ElasticSearch as backend for MLflow tracking service. To use this plugin you need a running instance of Elasticsearch 6.X.
 
 ## Development
 
