@@ -298,8 +298,8 @@ def test___build_elasticsearch_query(test_parsed_filter, test_query,
                                      test_type, create_store):
     actual_query = create_store._build_elasticsearch_query(
         parsed_filters=[test_parsed_filter], s=Search())
-    mock_query = Search().query('nested', path=test_type, query=test_query)
-    assert actual_query == mock_query
+    expected_query = Search().query('nested', path=test_type, query=test_query)
+    assert actual_query == expected_query
 
 
 @pytest.mark.usefixtures('create_store')
@@ -313,5 +313,5 @@ def test___get_orderby_clauses(create_store):
                     {'params.value': {'order': "desc",
                                       "nested": {"path": "params",
                                                  "filter": {"term": {'params.key': "param0"}}}}}]
-    mock_query = Search().sort(*sort_clauses)
-    assert actual_query == mock_query
+    expected_query = Search().sort(*sort_clauses)
+    assert actual_query == expected_query
