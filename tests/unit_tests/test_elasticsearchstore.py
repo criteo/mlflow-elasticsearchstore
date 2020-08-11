@@ -275,3 +275,19 @@ def test___build_elasticsearch_query(search_query_mock, create_store):
     for i, parsed_filter in enumerate(parsed_filters):
         create_store._build_elasticsearch_query(parsed_filters=[parsed_filter], s=Search())
         search_query_mock.assert_called_with('nested', path=type_dict[i], query=mock_queries[i])
+
+
+@mock.patch('elasticsearch_dsl.Search.sort')
+@pytest.mark.usefixtures('create_store')
+def test___get_orderby_clauses(search_sort_mock, create_store):
+    order_by_list = ['metrics.`metric0` ASC', 'params.`param0` DESC']
+    search_sort_mock.return_value = Search()
+    create_store._get_orderby_clauses(order_by_list=order_by_list, s=Search())
+    sort_clauses = [{'latest_metrics.value': {'order': "asc",
+                                              "nested": {"path": "latest_metrics",
+                                                         "filter": {"term": {'latest_metrics.key':
+                                                                             "metric0"}}}}},
+                    {'params.value': {'order': "desc",
+                                      "nested": {"path": "params",
+                                                 "filter": {"term": {'params.key': "param0"}}}}}]
+    search_sort_mock.assert_called_once_with(*sort_clauses)
