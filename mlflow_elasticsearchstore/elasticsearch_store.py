@@ -224,12 +224,9 @@ class ElasticsearchStore(AbstractStore):
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_id)\
             .filter("terms", lifecycle_stage=stages)
-        s.aggs.bucket('latest_metrics', 'nested', path="latest_metrics") \
-            .bucket("latest_metrics_keys", "terms", field="latest_metrics.key")
-        s.aggs.bucket('params', 'nested', path="params") \
-            .bucket("params_keys", "terms", field="params.key")
-        s.aggs.bucket('tags', 'nested', path="tags") \
-            .bucket("tags_keys", "terms", field="tags.key")
+        for col in ['latest_metrics', 'params', 'tags']:
+            s.aggs.bucket(col, 'nested', path=col) \
+                .bucket(f'{col}_keys', "terms", field=f'{col}.key')
         response = s.execute()
         metrics = [m.key for m in response.aggregations.latest_metrics.latest_metrics_keys.buckets]
         params = [p.key for p in response.aggregations.params.params_keys.buckets]
