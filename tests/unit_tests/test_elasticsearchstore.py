@@ -7,8 +7,9 @@ from mlflow.entities import (RunTag, Metric, Param, RunStatus,
                              LifecycleStage, ViewType, ExperimentTag)
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
-from mlflow_elasticsearchstore.models import (
-    ElasticExperiment, ElasticRun, ElasticMetric, ElasticParam, ElasticTag, ElasticExperimentTag)
+from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun, ElasticMetric,
+                                              ElasticLatestMetric, ElasticParam,
+                                              ElasticTag, ElasticExperimentTag)
 
 experiment = ElasticExperiment(meta={'id': "1"}, name="name",
                                lifecycle_stage=LifecycleStage.ACTIVE,
@@ -25,7 +26,10 @@ run = ElasticRun(meta={'id': "1"},
                  status=RunStatus.to_string(RunStatus.RUNNING),
                  start_time=1, end_time=None,
                  lifecycle_stage=LifecycleStage.ACTIVE, artifact_uri="artifact_location",
-                 metrics=[ElasticMetric(key="metric1", value=1, timestamp=1, step=1)],
+                 metrics=[ElasticMetric(key="metric1", value=1,
+                                        timestamp=1, step=1, is_nan=False)],
+                 latest_metrics=[ElasticLatestMetric(
+                     key="metric1", value=1, timestamp=1, step=1, is_nan=False)],
                  params=[ElasticParam(key="param1", value="val1")],
                  tags=[ElasticTag(key="tag1", value="val1")])
 
@@ -35,11 +39,15 @@ deleted_run = ElasticRun(meta={'id': "1"},
                          start_time=1, end_time=None,
                          lifecycle_stage=LifecycleStage.DELETED,
                          artifact_uri="artifact_location",
-                         metrics=[ElasticMetric(key="metric1", value=1, timestamp=1, step=1)],
+                         metrics=[ElasticMetric(key="metric1", value=1,
+                                                timestamp=1, step=1, is_nan=False)],
+                         latest_metrics=[ElasticLatestMetric(
+                             key="metric1", value=1, timestamp=1, step=1, is_nan=False)],
                          params=[ElasticParam(key="param1", value="val1")],
                          tags=[ElasticTag(key="tag1", value="val1")])
 
 elastic_metric = ElasticMetric(key="metric2", value=2, timestamp=1, step=1, is_nan=False)
+
 metric = Metric(key="metric2", value=2, timestamp=1, step=1)
 
 elastic_param = ElasticParam(key="param2", value="val2")
@@ -49,8 +57,8 @@ elastic_tag = ElasticTag(key="tag2", value="val2")
 tag = RunTag(key="tag2", value="val2")
 
 
-@ mock.patch('elasticsearch_dsl.Search.filter')
-@ pytest.mark.usefixtures('create_store')
+@mock.patch('elasticsearch_dsl.Search.filter')
+@pytest.mark.usefixtures('create_store')
 def test_list_experiments(search_filter_mock, create_store):
     meta = SimpleNamespace(**{"id": "1"})
     hit = {"meta": meta, "name": "name",
@@ -276,3 +284,20 @@ def test__search_runs(search_filter_mock, create_store):
     assert real_runs[0]._data._metrics == runs[0]._data._metrics
     assert real_runs[0]._data._params == runs[0]._data._params
     assert real_runs[0]._data._tags == runs[0]._data.tags
+
+
+@pytest.mark.parametrize("test_elastic_metric,test_elastic_latest_metrics",
+                         [(ElasticMetric(key="metric1", value=2, timestamp=1, step=2, is_nan=False),
+                           [ElasticLatestMetric(key="metric1", value=2, timestamp=1,
+                                                step=2, is_nan=False)]),
+
+                          (ElasticMetric(key="metric2", value=2, timestamp=1, step=1, is_nan=False),
+                           [ElasticLatestMetric(key="metric1", value=2, timestamp=1,
+                                                step=2, is_nan=False),
+                            ElasticLatestMetric(key="metric2", value=2, timestamp=1,
+                                                step=1, is_nan=False)])])
+@pytest.mark.usefixtures('create_store')
+def test__update_latest_metric_if_necessary(test_elastic_metric, test_elastic_latest_metrics,
+                                            create_store):
+    create_store._update_latest_metric_if_necessary(test_elastic_metric, run)
+    assert run.latest_metrics == test_elastic_latest_metrics
