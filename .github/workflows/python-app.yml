@@ -33,5 +33,6 @@ jobs:
         pytest
     - name: Integration tests
       run: |
-        source ./tests/scripts/initialize_database.sh
-        source ./tests/scripts/elasticsearchstore_integration_test.sh
+        cd tests/scripts
+        source ./initialize_database.sh
+        source ./elasticsearchstore_integration_test.sh
