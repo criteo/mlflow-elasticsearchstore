@@ -8,7 +8,6 @@ echo "Beginning Elasticsearchstore integration tests"
 
 echo "Creating venv"
 rm -rf elasticsearchstore_test_env
-ls
 python3.6 -m venv elasticsearchstore_test_env
 . elasticsearchstore_test_env/bin/activate
 pip install -U pip setuptools
