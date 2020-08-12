@@ -5,6 +5,5 @@ services:
         ports:
             - "9200:9200"
         environment: 
-            - ELASTICSEARCH_USERNAME=user
-            - ELASTICSEARCH_PASSWORD=password
+            - ELASTIC_PASSWORD=password
             - xpack.security.enabled=true
