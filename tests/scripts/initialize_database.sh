@@ -1,4 +1,4 @@
 #!/bin/bash
 
 docker ps -a
-docker-compose up
+docker-compose up -d

@@ -4,3 +4,7 @@ services:
         image: "elasticsearch:6.8.11"
         ports:
             - "9200:9200"
+        environment: 
+            - ELASTICSEARCH_USERNAME=user
+            - ELASTICSEARCH_PASSWORD=password
+            - xpack.security.enabled=true
