@@ -1,7 +1,7 @@
 version: '3'
 services:
     elasticsearch:
-        image: "elasticsearch:6.8.11"
+        image: "elastic_store"
         ports:
             - "9200:9200"
         environment: 
