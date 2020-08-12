@@ -31,3 +31,7 @@ jobs:
     - name: Unit tests
       run: |
         pytest
+    - name: Integration tests
+      run: |
+        source ./tests/scripts/initialize_database.sh
+        source ./tests/scripts/elasticsearchstore_integration_test.sh
