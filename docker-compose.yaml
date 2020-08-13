@@ -7,3 +7,4 @@ services:
         environment: 
             - ELASTIC_PASSWORD=password
             - xpack.security.enabled=true
+        network_mode: bridge
