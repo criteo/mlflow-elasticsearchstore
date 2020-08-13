@@ -2,7 +2,6 @@ import pytest
 
 from mlflow.entities import (Experiment, Run, RunInfo, RunData,
                              Metric, Param, RunTag, ViewType, LifecycleStage)
-from mlflow.protos.databricks_pb2 import INVALID_STATE
 from mlflow.exceptions import MlflowException
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
@@ -90,6 +89,13 @@ def test_create_experiment(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
+def test_exception_restore_experiment(init_store):
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.restore_experiment("hzb553MBNoOYfhXjsXRa")
+        assert "Cannot restore an active experiment." in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
 def test_delete_experiment(init_store):
     init_store.delete_experiment("hzb553MBNoOYfhXjsXRa")
     deleted_exp = init_store.get_experiment("hzb553MBNoOYfhXjsXRa")
@@ -97,10 +103,17 @@ def test_delete_experiment(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
-def test_execption_delete_experiment(init_store):
+def test_exception_delete_experiment(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.delete_experiment("hzb553MBNoOYfhXjsXRa")
         assert "Cannot delete an already deleted experiment." in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_exception_rename_experiment(init_store):
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.rename_experiment("hzb553MBNoOYfhXjsXRa", "exp2renamed")
+        assert "Cannot rename a non-active experiment." in str(excinfo.value)
 
 
 @pytest.mark.usefixtures('init_store')
