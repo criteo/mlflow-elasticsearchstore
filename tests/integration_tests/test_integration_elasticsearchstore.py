@@ -12,7 +12,7 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.usefixtures('init_store')
-def test_fail_get_experiment(init_store):
+def test_get_experiment_with_fake_id(init_store):
     with pytest.raises(NotFoundError) as excinfo:
         init_store.get_experiment(experiment_id="fake_id")
         assert "404" in excinfo
@@ -97,21 +97,21 @@ def test_create_experiment(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
-def test_exception1_create_experiment(init_store):
+def test_create_experiment_with_no_name(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.create_experiment(name="", artifact_location="artifact_location")
         assert 'Invalid experiment name' in str(excinfo.value)
 
 
 @pytest.mark.usefixtures('init_store')
-def test_exception2_create_experiment(init_store):
+def test_create_experiment_with_name_equal_None(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.create_experiment(name=None, artifact_location="artifact_location")
         assert 'Invalid experiment name' in str(excinfo.value)
 
 
 @pytest.mark.usefixtures('init_store')
-def test_exception_restore_experiment(init_store):
+def test_restore_experiment_of_active_experiment(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.restore_experiment("hzb553MBNoOYfhXjsXRa")
         assert "Cannot restore an active experiment." in str(excinfo.value)
@@ -125,14 +125,14 @@ def test_delete_experiment(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
-def test_exception_delete_experiment(init_store):
+def test_delete_experiment_of_deleted_experiment(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.delete_experiment("hzb553MBNoOYfhXjsXRa")
         assert "Cannot delete an already deleted experiment." in str(excinfo.value)
 
 
 @pytest.mark.usefixtures('init_store')
-def test_exception_rename_experiment(init_store):
+def test_rename_experiment_of_deleted_experiment(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.rename_experiment("hzb553MBNoOYfhXjsXRa", "exp2renamed")
         assert "Cannot rename a non-active experiment." in str(excinfo.value)
