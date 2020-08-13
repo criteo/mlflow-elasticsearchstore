@@ -2,21 +2,11 @@ import pytest
 
 from mlflow.entities import (Experiment, Run, RunInfo, RunData,
                              Metric, Param, RunTag, ViewType, LifecycleStage)
+from mlflow.protos.databricks_pb2 import INVALID_STATE
+from mlflow.exceptions import MlflowException
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
 
-
-expected_experiment0 = Experiment(experiment_id="hTb553MBNoOYfhXjnnQh", name="exp0",
-                                  lifecycle_stage="active", artifact_location="artifact_path",
-                                  tags=[])
-
-expected_experiment1 = Experiment(experiment_id="hjb553MBNoOYfhXjp3Tn", name="exp1",
-                                  lifecycle_stage="active", artifact_location="artifact_path",
-                                  tags=[])
-
-expected_experiment2 = Experiment(experiment_id="hzb553MBNoOYfhXjsXRa", name="exp2",
-                                  lifecycle_stage="active", artifact_location="artifact_path",
-                                  tags=[])
 
 pytestmark = pytest.mark.integration
 
@@ -104,6 +94,13 @@ def test_delete_experiment(init_store):
     init_store.delete_experiment("hzb553MBNoOYfhXjsXRa")
     deleted_exp = init_store.get_experiment("hzb553MBNoOYfhXjsXRa")
     assert deleted_exp.lifecycle_stage == LifecycleStage.DELETED
+
+
+@pytest.mark.usefixtures('init_store')
+def test_execption_delete_experiment(init_store):
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.delete_experiment("hzb553MBNoOYfhXjsXRa")
+        assert "Cannot delete an already deleted experiment." in str(excinfo.value)
 
 
 @pytest.mark.usefixtures('init_store')
