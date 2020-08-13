@@ -97,6 +97,20 @@ def test_create_experiment(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
+def test_exception1_create_experiment(init_store):
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.create_experiment(name="", artifact_location="artifact_location")
+        assert 'Invalid experiment name' in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_exception2_create_experiment(init_store):
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.create_experiment(name=None, artifact_location="artifact_location")
+        assert 'Invalid experiment name' in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
 def test_exception_restore_experiment(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.restore_experiment("hzb553MBNoOYfhXjsXRa")
