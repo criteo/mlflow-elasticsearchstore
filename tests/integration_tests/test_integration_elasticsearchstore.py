@@ -1,4 +1,5 @@
 import pytest
+from elasticsearch.exceptions import NotFoundError
 
 from mlflow.entities import (Experiment, Run, RunInfo, RunData,
                              Metric, Param, RunTag, ViewType, LifecycleStage)
@@ -8,6 +9,13 @@ from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
 
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.mark.usefixtures('init_store')
+def test_fail_get_experiment(init_store):
+    with pytest.raises(NotFoundError) as excinfo:
+        init_store.get_experiment(experiment_id="fake_id")
+        assert "404" in excinfo
 
 
 @pytest.mark.usefixtures('init_store')
