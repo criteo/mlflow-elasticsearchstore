@@ -3,7 +3,7 @@ import mock
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
 
 
-@pytest.mark.integtest
+@pytest.mark.integration_test
 def test_get_experiment():
     store = ElasticsearchStore(store_uri="elasticsearch://elastic:password@localhost:9200",
                                artifact_uri="viewfs://preprod-pa4/user/mlflow/mlflow_artifacts")
