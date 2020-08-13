@@ -1,7 +1,7 @@
 attempt_counter=0
 max_attempts=10
 
-until(curl --location -u "elastic:password" --request PUT 'http://localhost:9200/_snapshot/my_fs_backup' \
+until(curl --location --request PUT 'http://localhost:9200/_snapshot/my_fs_backup' \
 --header 'Content-Type: application/json' \
 --data-raw '{
   "type": "fs",

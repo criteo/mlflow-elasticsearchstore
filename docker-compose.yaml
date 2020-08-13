@@ -4,7 +4,4 @@ services:
         image: "elastic_store"
         ports:
             - "9200:9200"
-        environment: 
-            - ELASTIC_PASSWORD=password
-            - xpack.security.enabled=true
         network_mode: bridge
