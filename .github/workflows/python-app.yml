@@ -45,7 +45,7 @@ jobs:
         pip install -r tests-requirements.txt
     - name: Unit tests
       run: |
-        pytest -m "not integration_test"
+        pytest -m "not integration"
   integration-tests:
     runs-on: ubuntu-latest
 
@@ -65,4 +65,4 @@ jobs:
         sudo sysctl -w vm.max_map_count=262144
         source ./tests/scripts/initialize_database.sh
         source ./tests/scripts/restore_database.sh
-        pytest -m integration_test
+        pytest -m integration

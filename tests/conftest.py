@@ -21,3 +21,9 @@ def create_store():
 def create_mlflow_client():
     client = MlflowClient("elasticsearch://tracking_uri", "registry_uri")
     return client
+
+
+@pytest.fixture
+def init_store():
+    return ElasticsearchStore(store_uri="elasticsearch://elastic:password@localhost:9200",
+                              artifact_uri="viewfs://preprod-pa4/user/mlflow/mlflow_artifacts")
