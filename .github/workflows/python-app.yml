@@ -54,6 +54,5 @@ jobs:
     - uses: actions/checkout@v2
     - name: Integration tests
       run: |
-        docker build --tag elastic_store .
         source ./tests/scripts/initialize_database.sh
         source ./tests/scripts/restore_database.sh
