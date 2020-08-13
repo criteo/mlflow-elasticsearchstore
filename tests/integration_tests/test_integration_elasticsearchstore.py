@@ -1,5 +1,4 @@
 import pytest
-import mock
 
 from mlflow.entities import Experiment
 
@@ -12,6 +11,5 @@ actual_experiment = Experiment(experiment_id="WrAh43MB26mjXDfbtLks", name="a.viv
 @pytest.mark.integration
 @pytest.mark.usefixtures('init_store')
 def test_get_experiment(init_store):
-    experiment_id = "WrAh43MB26mjXDfbtLks"
-    experiment = init_store.get_experiment(experiment_id=experiment_id)
+    experiment = init_store.get_experiment(experiment_id=actual_experiment.experiment_id)
     assert experiment.__dict__ == actual_experiment.__dict__
