@@ -84,9 +84,18 @@ class ElasticsearchStore(AbstractStore):
                                                              lifecycle_stage=stages).execute()
         return [self._hit_to_mlflow_experiment(e) for e in response]
 
+    def _list_experiments_name(self) -> List[str]:
+        s = Search(index="mlflow-experiments")
+        s.aggs.bucket("exp_names", "terms", field="name")
+        response = s.execute()
+        return [name.key for name in response.aggregations.exp_names.buckets]
+
     def create_experiment(self, name: str, artifact_location: str = None) -> str:
         if name is None or name == '':
             raise MlflowException('Invalid experiment name', INVALID_PARAMETER_VALUE)
+        existing_names = self._list_experiments_name()
+        if name in existing_names:
+            raise MlflowException('This experiment name already exists', INVALID_PARAMETER_VALUE)
         experiment = ElasticExperiment(name=name, lifecycle_stage=LifecycleStage.ACTIVE,
                                        artifact_location=artifact_location)
         experiment.save()
