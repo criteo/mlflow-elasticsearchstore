@@ -234,15 +234,16 @@ class ElasticsearchStore(AbstractStore):
         response = Search(index="mlflow-runs").filter("ids", values=[run_id]) \
             .filter('nested', inner_hits={"size": 100}, path="metrics",
                     query=Q('term', metrics__key=metric_key)).source(False).execute()
-        return [self._hit_to_mlflow_metric(m["_source"]) for m in
-                response["hits"]["hits"][0].inner_hits.metrics.hits.hits]
+        return ([self._hit_to_mlflow_metric(m["_source"]) for m in
+                 response["hits"]["hits"][0].inner_hits.metrics.hits.hits]
+                if (len(response["hits"]["hits"]) != 0) else [])
 
     def list_all_columns(self, experiment_id: str, run_view_type: str) -> Columns:
         stages = LifecycleStage.view_type_to_stages(run_view_type)
-        s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_id)\
+        s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_id) \
             .filter("terms", lifecycle_stage=stages)
         for col in ['latest_metrics', 'params', 'tags']:
-            s.aggs.bucket(col, 'nested', path=col) \
+            s.aggs.bucket(col, 'nested', path=col)\
                 .bucket(f'{col}_keys', "terms", field=f'{col}.key')
         response = s.execute()
         metrics = [m.key for m in response.aggregations.latest_metrics.latest_metrics_keys.buckets]

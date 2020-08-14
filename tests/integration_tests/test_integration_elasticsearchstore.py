@@ -1,7 +1,7 @@
 import pytest
 from elasticsearch.exceptions import NotFoundError
 
-from mlflow.entities import (Experiment, Run, RunInfo, RunData,
+from mlflow.entities import (Experiment, Run, RunInfo, RunData, Columns,
                              Metric, Param, RunTag, ViewType, LifecycleStage)
 from mlflow.exceptions import MlflowException
 
@@ -150,3 +150,66 @@ def test_rename_experiment(init_store):
     init_store.rename_experiment("hzb553MBNoOYfhXjsXRa", "exp2renamed")
     renamed_exp = init_store.get_experiment("hzb553MBNoOYfhXjsXRa")
     assert renamed_exp.name == "exp2renamed"
+
+
+@pytest.mark.usefixtures('init_store')
+def test_get_metric_history(init_store):
+    expected_metric_history = [Metric(key="metric0", value=15.0, timestamp=1597324762700, step=0),
+                               Metric(key="metric0", value=7.0, timestamp=1597324762742, step=1),
+                               Metric(key="metric0", value=20.0, timestamp=1597324762778, step=2)]
+    actual_metric_history = init_store.get_metric_history(
+        "7b2e71956f3d4c08b042624a8d83700d", "metric0")
+    for i, metric in enumerate(actual_metric_history):
+        assert metric.__dict__ == expected_metric_history[i].__dict__
+
+
+@pytest.mark.usefixtures('init_store')
+def test_get_metric_history_with_fake_key(init_store):
+    expected_metric_history = []
+    actual_metric_history = init_store.get_metric_history(
+        "7b2e71956f3d4c08b042624a8d83700d", "fake_key")
+    assert actual_metric_history == expected_metric_history
+
+
+@pytest.mark.usefixtures('init_store')
+def test_get_metric_history_with_fake_run_id(init_store):
+    expected_metric_history = []
+    actual_metric_history = init_store.get_metric_history(
+        "fake_run_id", "metric0")
+    assert actual_metric_history == expected_metric_history
+
+
+@pytest.mark.usefixtures('init_store')
+def test_list_all_columns_all(init_store):
+    expected_columns = Columns(metrics=["metric0", "metric1", "metric7"],
+                               params=["param0", "param1", "param2", "param3", "param7"],
+                               tags=["tag0", "tag1", "tag2", "tag3", "tag7"])
+    actual_columns = init_store.list_all_columns("hjb553MBNoOYfhXjp3Tn", ViewType.ALL)
+    assert expected_columns.__dict__ == actual_columns.__dict__
+
+
+@pytest.mark.usefixtures('init_store')
+def test_list_all_columns_active(init_store):
+    expected_columns = Columns(metrics=["metric0", "metric1"],
+                               params=["param0", "param1", "param2", "param3"],
+                               tags=["tag0", "tag1", "tag2", "tag3"])
+    actual_columns = init_store.list_all_columns("hjb553MBNoOYfhXjp3Tn", ViewType.ACTIVE_ONLY)
+    assert expected_columns.__dict__ == actual_columns.__dict__
+
+
+@pytest.mark.usefixtures('init_store')
+def test_list_all_columns_deleted(init_store):
+    expected_columns = Columns(metrics=["metric7"],
+                               params=["param7"],
+                               tags=["tag7"])
+    actual_columns = init_store.list_all_columns("hjb553MBNoOYfhXjp3Tn", ViewType.DELETED_ONLY)
+    assert expected_columns.__dict__ == actual_columns.__dict__
+
+
+@pytest.mark.usefixtures('init_store')
+def test_list_all_columns_with_fake_experiment_id(init_store):
+    expected_columns = Columns(metrics=[],
+                               params=[],
+                               tags=[])
+    actual_columns = init_store.list_all_columns("fake_id", ViewType.ALL)
+    assert expected_columns.__dict__ == actual_columns.__dict__
