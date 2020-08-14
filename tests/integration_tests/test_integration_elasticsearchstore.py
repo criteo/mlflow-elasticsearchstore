@@ -1,12 +1,15 @@
 import pytest
+import math
 from elasticsearch.exceptions import NotFoundError
 
-from mlflow.entities import (Experiment, Run, RunInfo, RunData, Columns, RunStatus,
-                             Metric, Param, RunTag, ViewType, LifecycleStage)
+from mlflow.entities import (Experiment, ExperimentTag, Run, RunInfo, RunData, Columns,
+                             Metric, Param, RunTag, ViewType, LifecycleStage, RunStatus)
 from mlflow.exceptions import MlflowException
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
-
+from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun, ElasticMetric,
+                                              ElasticParam, ElasticTag,
+                                              ElasticLatestMetric, ElasticExperimentTag)
 
 pytestmark = pytest.mark.integration
 
@@ -61,13 +64,6 @@ def test_create_experiment_with_no_name(init_store):
         assert 'Invalid experiment name' in str(excinfo.value)
 
 
-def test_create_experiment_with_existing_name(init_store):
-    with pytest.raises(MlflowException) as excinfo:
-        init_store.create_experiment(name="exp0", artifact_location="artifact_location")
-        assert 'This experiment name already exists' in str(excinfo.value)
-
-
-@pytest.mark.usefixtures('init_store')
 def test_create_experiment_with_existing_name(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.create_experiment(name="exp0", artifact_location="artifact_location")
@@ -272,7 +268,255 @@ def test_restore_run(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
-def test_delete_run_of_active_erun(init_store):
+def test_restore_run_of_active_run(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.restore_run("d57a45f3763e4827b7c03f03d60dbbe1")
         assert "must be in the 'deleted' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_metric(init_store):
+    new_metric = Metric(key="new_metric", value=7.0, timestamp=10, step=0)
+    expected_elastic_metrics = [ElasticMetric(key="metric0", value=15.0,
+                                              timestamp=1597324762700, step=0, is_nan=False),
+                                ElasticMetric(key="metric0", value=7.0,
+                                              timestamp=1597324762742, step=1, is_nan=False),
+                                ElasticMetric(key="metric0", value=20.0,
+                                              timestamp=1597324762778, step=2, is_nan=False),
+                                ElasticMetric(key="metric1", value=20.0,
+                                              timestamp=1597324762815, step=0, is_nan=False),
+                                ElasticMetric(key="metric1", value=0.0,
+                                              timestamp=1597324762847, step=1, is_nan=False),
+                                ElasticMetric(key="metric1", value=7.0,
+                                              timestamp=1597324762890, step=2, is_nan=False),
+                                ElasticMetric(key="new_metric", value=7.0,
+                                              timestamp=10, step=0, is_nan=False)]
+    expected_elastic_latest_metrics = [ElasticLatestMetric(key="metric0", value=20.0,
+                                                           timestamp=1597324762778, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="metric1", value=7.0,
+                                                           timestamp=1597324762890, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="new_metric", value=7.0,
+                                                           timestamp=10, step=0, is_nan=False)]
+    init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    for i, latest_metric in enumerate(actual_run.latest_metrics):
+        assert latest_metric == expected_elastic_latest_metrics[i]
+    for i, metric in enumerate(actual_run.metrics):
+        assert metric == expected_elastic_metrics[i]
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_metric_with_nan_value(init_store):
+    new_metric = Metric(key="nan_metric", value=math.nan, timestamp=10, step=0)
+    expected_elastic_metrics = [ElasticMetric(key="metric0", value=15.0,
+                                              timestamp=1597324762700, step=0, is_nan=False),
+                                ElasticMetric(key="metric0", value=7.0,
+                                              timestamp=1597324762742, step=1, is_nan=False),
+                                ElasticMetric(key="metric0", value=20.0,
+                                              timestamp=1597324762778, step=2, is_nan=False),
+                                ElasticMetric(key="metric1", value=20.0,
+                                              timestamp=1597324762815, step=0, is_nan=False),
+                                ElasticMetric(key="metric1", value=0.0,
+                                              timestamp=1597324762847, step=1, is_nan=False),
+                                ElasticMetric(key="metric1", value=7.0,
+                                              timestamp=1597324762890, step=2, is_nan=False),
+                                ElasticMetric(key="new_metric", value=7.0,
+                                              timestamp=10, step=0, is_nan=False),
+                                ElasticMetric(key="nan_metric", value=0.0,
+                                              timestamp=10, step=0, is_nan=True)]
+    expected_elastic_latest_metrics = [ElasticLatestMetric(key="metric0", value=20.0,
+                                                           timestamp=1597324762778, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="metric1", value=7.0,
+                                                           timestamp=1597324762890, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="new_metric", value=7.0,
+                                                           timestamp=10, step=0, is_nan=False),
+                                       ElasticLatestMetric(key="nan_metric", value=0.0,
+                                                           timestamp=10, step=0, is_nan=True)]
+    init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    for i, latest_metric in enumerate(actual_run.latest_metrics):
+        assert latest_metric == expected_elastic_latest_metrics[i]
+    for i, metric in enumerate(actual_run.metrics):
+        assert metric == expected_elastic_metrics[i]
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_metric_with_inf_value(init_store):
+    new_metric = Metric(key="inf_metric", value=1.7976931348623157e309, timestamp=10, step=0)
+    expected_elastic_metrics = [ElasticMetric(key="metric0", value=15.0,
+                                              timestamp=1597324762700, step=0, is_nan=False),
+                                ElasticMetric(key="metric0", value=7.0,
+                                              timestamp=1597324762742, step=1, is_nan=False),
+                                ElasticMetric(key="metric0", value=20.0,
+                                              timestamp=1597324762778, step=2, is_nan=False),
+                                ElasticMetric(key="metric1", value=20.0,
+                                              timestamp=1597324762815, step=0, is_nan=False),
+                                ElasticMetric(key="metric1", value=0.0,
+                                              timestamp=1597324762847, step=1, is_nan=False),
+                                ElasticMetric(key="metric1", value=7.0,
+                                              timestamp=1597324762890, step=2, is_nan=False),
+                                ElasticMetric(key="new_metric", value=7.0,
+                                              timestamp=10, step=0, is_nan=False),
+                                ElasticMetric(key="nan_metric", value=0.0,
+                                              timestamp=10, step=0, is_nan=True),
+                                ElasticMetric(key="inf_metric", value=1.7976931348623157e308,
+                                              timestamp=10, step=0, is_nan=False)]
+    expected_elastic_latest_metrics = [ElasticLatestMetric(key="metric0", value=20.0,
+                                                           timestamp=1597324762778, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="metric1", value=7.0,
+                                                           timestamp=1597324762890, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="new_metric", value=7.0,
+                                                           timestamp=10, step=0, is_nan=False),
+                                       ElasticLatestMetric(key="nan_metric", value=0.0,
+                                                           timestamp=10, step=0, is_nan=True),
+                                       ElasticLatestMetric(key="inf_metric",
+                                                           value=1.7976931348623157e308,
+                                                           timestamp=10, step=0, is_nan=False)]
+    init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    for i, latest_metric in enumerate(actual_run.latest_metrics):
+        assert latest_metric == expected_elastic_latest_metrics[i]
+    for i, metric in enumerate(actual_run.metrics):
+        assert metric == expected_elastic_metrics[i]
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_metric_with_negative_inf_value(init_store):
+    new_metric = Metric(key="negative_inf_metric",
+                        value=-1.7976931348623157e309, timestamp=10, step=0)
+    expected_elastic_metrics = [ElasticMetric(key="metric0", value=15.0,
+                                              timestamp=1597324762700, step=0, is_nan=False),
+                                ElasticMetric(key="metric0", value=7.0,
+                                              timestamp=1597324762742, step=1, is_nan=False),
+                                ElasticMetric(key="metric0", value=20.0,
+                                              timestamp=1597324762778, step=2, is_nan=False),
+                                ElasticMetric(key="metric1", value=20.0,
+                                              timestamp=1597324762815, step=0, is_nan=False),
+                                ElasticMetric(key="metric1", value=0.0,
+                                              timestamp=1597324762847, step=1, is_nan=False),
+                                ElasticMetric(key="metric1", value=7.0,
+                                              timestamp=1597324762890, step=2, is_nan=False),
+                                ElasticMetric(key="new_metric", value=7.0,
+                                              timestamp=10, step=0, is_nan=False),
+                                ElasticMetric(key="nan_metric", value=0.0,
+                                              timestamp=10, step=0, is_nan=True),
+                                ElasticMetric(key="inf_metric", value=1.7976931348623157e308,
+                                              timestamp=10, step=0, is_nan=False),
+                                ElasticMetric(key="negative_inf_metric",
+                                              value=-1.7976931348623157e308,
+                                              timestamp=10, step=0, is_nan=False)]
+    expected_elastic_latest_metrics = [ElasticLatestMetric(key="metric0", value=20.0,
+                                                           timestamp=1597324762778, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="metric1", value=7.0,
+                                                           timestamp=1597324762890, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="new_metric", value=7.0,
+                                                           timestamp=10, step=0, is_nan=False),
+                                       ElasticLatestMetric(key="nan_metric", value=0.0,
+                                                           timestamp=10, step=0, is_nan=True),
+                                       ElasticLatestMetric(key="inf_metric",
+                                                           value=1.7976931348623157e308,
+                                                           timestamp=10, step=0, is_nan=False),
+                                       ElasticLatestMetric(key="negative_inf_metric",
+                                                           value=-1.7976931348623157e308,
+                                                           timestamp=10, step=0, is_nan=False)]
+    init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    for i, latest_metric in enumerate(actual_run.latest_metrics):
+        assert latest_metric == expected_elastic_latest_metrics[i]
+    for i, metric in enumerate(actual_run.metrics):
+        assert metric == expected_elastic_metrics[i]
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_metric_with_existing_key(init_store):
+    new_metric = Metric(key="new_metric", value=-10, timestamp=20, step=1)
+    expected_elastic_metrics = [ElasticMetric(key="metric0", value=15.0,
+                                              timestamp=1597324762700, step=0, is_nan=False),
+                                ElasticMetric(key="metric0", value=7.0,
+                                              timestamp=1597324762742, step=1, is_nan=False),
+                                ElasticMetric(key="metric0", value=20.0,
+                                              timestamp=1597324762778, step=2, is_nan=False),
+                                ElasticMetric(key="metric1", value=20.0,
+                                              timestamp=1597324762815, step=0, is_nan=False),
+                                ElasticMetric(key="metric1", value=0.0,
+                                              timestamp=1597324762847, step=1, is_nan=False),
+                                ElasticMetric(key="metric1", value=7.0,
+                                              timestamp=1597324762890, step=2, is_nan=False),
+                                ElasticMetric(key="new_metric", value=7.0,
+                                              timestamp=10, step=0, is_nan=False),
+                                ElasticMetric(key="nan_metric", value=0.0,
+                                              timestamp=10, step=0, is_nan=True),
+                                ElasticMetric(key="inf_metric", value=1.7976931348623157e308,
+                                              timestamp=10, step=0, is_nan=False),
+                                ElasticMetric(key="negative_inf_metric",
+                                              value=-1.7976931348623157e308,
+                                              timestamp=10, step=0, is_nan=False),
+                                ElasticMetric(key="new_metric", value=-10,
+                                              timestamp=20, step=1, is_nan=False)]
+    expected_elastic_latest_metrics = [ElasticLatestMetric(key="metric0", value=20.0,
+                                                           timestamp=1597324762778, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="metric1", value=7.0,
+                                                           timestamp=1597324762890, step=2,
+                                                           is_nan=False),
+                                       ElasticLatestMetric(key="new_metric", value=-10,
+                                                           timestamp=20, step=1, is_nan=False),
+                                       ElasticLatestMetric(key="nan_metric", value=0.0,
+                                                           timestamp=10, step=0, is_nan=True),
+                                       ElasticLatestMetric(key="inf_metric",
+                                                           value=1.7976931348623157e308,
+                                                           timestamp=10, step=0, is_nan=False),
+                                       ElasticLatestMetric(key="negative_inf_metric",
+                                                           value=-1.7976931348623157e308,
+                                                           timestamp=10, step=0, is_nan=False)]
+    init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    for i, latest_metric in enumerate(actual_run.latest_metrics):
+        assert latest_metric == expected_elastic_latest_metrics[i]
+    for i, metric in enumerate(actual_run.metrics):
+        assert metric == expected_elastic_metrics[i]
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_param(init_store):
+    new_param = Param(key="new_param", value="new_value")
+    expected_elastic_params = [ElasticParam(key="param0", value="val2"),
+                               ElasticParam(key="param1", value="Val1"),
+                               ElasticParam(key="param2", value="Val1"),
+                               ElasticParam(key="param3", value="valeur4"),
+                               ElasticParam(key="new_param", value="new_value")]
+    init_store.log_param("7b2e71956f3d4c08b042624a8d83700d", new_param)
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    for i, param in enumerate(actual_run.params):
+        assert param == expected_elastic_params[i]
+
+
+@pytest.mark.usefixtures('init_store')
+def test_set_tag(init_store):
+    new_tag = RunTag(key="new_tag", value="new_value")
+    expected_elastic_tags = [ElasticTag(key="tag0", value="val2"),
+                             ElasticTag(key="tag1", value="test3"),
+                             ElasticTag(key="tag2", value="val2"),
+                             ElasticTag(key="tag3", value="test3"),
+                             ElasticTag(key="new_tag", value="new_value")]
+    init_store.set_tag("7b2e71956f3d4c08b042624a8d83700d", new_tag)
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    for i, tag in enumerate(actual_run.tags):
+        assert tag == expected_elastic_tags[i]
+
+
+@pytest.mark.usefixtures('init_store')
+def test_experiment_set_tag(init_store):
+    new_experiment_tag = ExperimentTag(key="new_tag", value="new_value")
+    expected_elastic_tags = [ElasticExperimentTag(key="new_tag", value="new_value")]
+    init_store.set_experiment_tag("hTb553MBNoOYfhXjnnQh", new_experiment_tag)
+    actual_experiment = init_store._get_experiment("hTb553MBNoOYfhXjnnQh")
+    assert actual_experiment.tags == expected_elastic_tags
