@@ -103,7 +103,6 @@ def test_create_experiment_with_no_name(init_store):
         assert 'Invalid experiment name' in str(excinfo.value)
 
 
-@pytest.mark.usefixtures('init_store')
 def test_create_experiment_with_existing_name(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.create_experiment(name="exp0", artifact_location="artifact_location")
