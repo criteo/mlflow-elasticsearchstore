@@ -7,7 +7,7 @@ import time
 from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
-from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD
+from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD, SEARCH_MAX_RESULTS_DEFAULT
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE
 from mlflow.entities import (Experiment, RunTag, Metric, Param, Run, RunInfo, RunData,
                              RunStatus, ExperimentTag, LifecycleStage, ViewType, Columns)
@@ -98,7 +98,7 @@ class ElasticsearchStore(AbstractStore):
             raise MlflowException('This experiment name already exists', INVALID_PARAMETER_VALUE)
         experiment = ElasticExperiment(name=name, lifecycle_stage=LifecycleStage.ACTIVE,
                                        artifact_location=artifact_location)
-        experiment.save()
+        experiment.save(refresh=True)
         return str(experiment.meta.id)
 
     def _get_experiment(self, experiment_id: str) -> ElasticExperiment:
@@ -112,19 +112,19 @@ class ElasticsearchStore(AbstractStore):
         experiment = self._get_experiment(experiment_id)
         if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
             raise MlflowException('Cannot delete an already deleted experiment.', INVALID_STATE)
-        experiment.update(lifecycle_stage=LifecycleStage.DELETED)
+        experiment.update(refresh=True, lifecycle_stage=LifecycleStage.DELETED)
 
     def restore_experiment(self, experiment_id: str) -> None:
         experiment = self._get_experiment(experiment_id)
         if experiment.lifecycle_stage != LifecycleStage.DELETED:
             raise MlflowException('Cannot restore an active experiment.', INVALID_STATE)
-        experiment.update(lifecycle_stage=LifecycleStage.ACTIVE)
+        experiment.update(refresh=True, lifecycle_stage=LifecycleStage.ACTIVE)
 
     def rename_experiment(self, experiment_id: str, new_name: str) -> None:
         experiment = self._get_experiment(experiment_id)
         if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
             raise MlflowException('Cannot rename a non-active experiment.', INVALID_STATE)
-        experiment.update(name=new_name)
+        experiment.update(refresh=True, name=new_name)
 
     def create_run(self, experiment_id: str, user_id: str,
                    start_time: int, tags: List[RunTag]) -> Run:
@@ -311,8 +311,8 @@ class ElasticsearchStore(AbstractStore):
             s = s.sort(*sort_clauses)
         return s
 
-    def _search_runs(self, experiment_ids: List[str], filter_string: str = None,
-                     run_view_type: str = None, max_results: int = None,
+    def _search_runs(self, experiment_ids: List[str], filter_string: str,
+                     run_view_type: str, max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
                      order_by: List[str] = None, page_token: str = None,
                      columns_to_whitelist: List[str] = None) -> Tuple[List[Run], str]:
 
