@@ -356,3 +356,150 @@ def test_list_all_columns_with_fake_experiment_id(init_store):
                                tags=[])
     actual_columns = init_store.list_all_columns("fake_id", ViewType.ALL)
     assert expected_columns.__dict__ == actual_columns.__dict__
+
+
+@pytest.mark.parametrize("expected_runs_ids,test_filter_string",
+                         [(["1e5200ae248b476cb0e60286e3f061a4", "4baa8e505cdb49109b6819a497f1a58a"],
+                           'params.param0="valeur4"'),
+                          ([], 'params.param0="test3"'),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1", "1e5200ae248b476cb0e60286e3f061a4",
+                            "4baa8e505cdb49109b6819a497f1a58a"], 'params."param0" LIKE \'%va%\''),
+                          ([], 'params."param0" LIKE \'%tes%\''),
+                          (["1e5200ae248b476cb0e60286e3f061a4"], 'tags.tag2="val2"'),
+                          ([], 'tags.tag0="test3"'),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1"], 'tags."tag0" LIKE \'%Va%\''),
+                          ([], 'tags."tag0" LIKE \'%tes%\''),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1"], 'tags."tag0" LIKE \'%Va%\''),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1"], 'metrics.metric0=0'),
+                          (["1e5200ae248b476cb0e60286e3f061a4"], 'metrics.metric0>0'),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1", "1e5200ae248b476cb0e60286e3f061a4"],
+                           'metrics.metric0>=0'),
+                          (["4baa8e505cdb49109b6819a497f1a58a"], 'metrics.metric0<0'),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1", "4baa8e505cdb49109b6819a497f1a58a"],
+                           'metrics.metric0<=0'),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1", "1e5200ae248b476cb0e60286e3f061a4",
+                            "4baa8e505cdb49109b6819a497f1a58a"], '')])
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_simple_filter(expected_runs_ids, test_filter_string, init_store):
+    actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                                           filter_string=test_filter_string,
+                                                           run_view_type=ViewType.ACTIVE_ONLY)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
+
+
+@pytest.mark.parametrize("expected_runs_ids,test_filter_string",
+                         [(["1e5200ae248b476cb0e60286e3f061a4"],
+                           'params.param1="test3" and tags.tag1="val2" and metrics.metric1=4'),
+                          (["4baa8e505cdb49109b6819a497f1a58a"],
+                           'params."param0" LIKE \'%va%\' and tags."tag1" LIKE \'%vale%\' and'
+                           ' metrics.metric1>9 and metrics.metric0<0'),
+                          ([],
+                           'params.param1="test3" and params."param1" LIKE \'%va%\''),
+                          ([], 'metrics.metric0>0 and metrics.metric0=-1'),
+                          (["1e5200ae248b476cb0e60286e3f061a4"], 'tags.tag1="val2" and'
+                           ' tags."tag1" LIKE \'%va%\'')])
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_complexe_filter(expected_runs_ids, test_filter_string, init_store):
+    actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                                           filter_string=test_filter_string,
+                                                           run_view_type=ViewType.ACTIVE_ONLY)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
+
+
+@pytest.mark.parametrize("expected_runs_ids,test_order_by",
+                         [(["1e5200ae248b476cb0e60286e3f061a4", "d57a45f3763e4827b7c03f03d60dbbe1",
+                            "4baa8e505cdb49109b6819a497f1a58a"], ['params.`param2` DESC']),
+                          (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1",
+                            "1e5200ae248b476cb0e60286e3f061a4"], ['params.`param2` ASC']),
+                          (["1e5200ae248b476cb0e60286e3f061a4", "d57a45f3763e4827b7c03f03d60dbbe1",
+                              "4baa8e505cdb49109b6819a497f1a58a"], ['tags.`tag2` DESC']),
+                          (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1",
+                            "1e5200ae248b476cb0e60286e3f061a4"], ['tags.`tag2` ASC']),
+                          (["1e5200ae248b476cb0e60286e3f061a4", "d57a45f3763e4827b7c03f03d60dbbe1",
+                              "4baa8e505cdb49109b6819a497f1a58a"], ['metrics.`metric0` DESC']),
+                          (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1",
+                            "1e5200ae248b476cb0e60286e3f061a4"], ['metrics.`metric0` ASC'])])
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_simple_order_by(expected_runs_ids, test_order_by, init_store):
+    actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                                           filter_string='',
+                                                           run_view_type=ViewType.ACTIVE_ONLY,
+                                                           order_by=test_order_by)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
+
+
+@pytest.mark.parametrize("expected_runs_ids,test_order_by",
+                         [(["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
+                            "d57a45f3763e4827b7c03f03d60dbbe1"],
+                           ['params.`param0` DESC', 'metrics.`metric0` ASC']),
+                          (["1e5200ae248b476cb0e60286e3f061a4", "4baa8e505cdb49109b6819a497f1a58a",
+                            "d57a45f3763e4827b7c03f03d60dbbe1"],
+                           ['params.`param0` DESC', 'params.`param0` ASC'])])
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_multiple_order_by(expected_runs_ids, test_order_by, init_store):
+    actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                                           filter_string='',
+                                                           run_view_type=ViewType.ACTIVE_ONLY,
+                                                           order_by=test_order_by)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
+
+
+@pytest.mark.parametrize("expected_runs_ids,test_view_type",
+                         [(["d57a45f3763e4827b7c03f03d60dbbe1", "1e5200ae248b476cb0e60286e3f061a4",
+                            "4baa8e505cdb49109b6819a497f1a58a"], ViewType.ACTIVE_ONLY),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1", "1e5200ae248b476cb0e60286e3f061a4",
+                            "4baa8e505cdb49109b6819a497f1a58a", "6bea870aeaad44e487883ece6e16a6da"],
+                             ViewType.ALL),
+                          (["6bea870aeaad44e487883ece6e16a6da"], ViewType.DELETED_ONLY)])
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_run_view_type(expected_runs_ids, test_view_type, init_store):
+    actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                                           filter_string='',
+                                                           run_view_type=test_view_type)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
+
+
+@pytest.mark.parametrize("expected_runs_ids,test_max_results",
+                         [(["d57a45f3763e4827b7c03f03d60dbbe1"], 1),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1", "1e5200ae248b476cb0e60286e3f061a4",
+                            "4baa8e505cdb49109b6819a497f1a58a"], 10000)])
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_max_results(expected_runs_ids, test_max_results, init_store):
+    actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                                           filter_string='',
+                                                           max_results=test_max_results,
+                                                           run_view_type=ViewType.ACTIVE_ONLY)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
+
+
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_max_results_threshold(init_store):
+    with pytest.raises(MlflowException) as excinfo:
+        actual_runs, next_page_token = \
+            init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                    filter_string='',
+                                    max_results=50001,
+                                    run_view_type=ViewType.ACTIVE_ONLY)
+        assert "Invalid value for request parameter max_results" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_complete(init_store):
+    test_filter_string = 'params."param0" LIKE \'%va%\' and tags.tag1="valeur4" and'
+    ' metrics.metric1>9 and metrics.metric0<=0 and metrics.metric1>0'
+    test_max_result = 2
+    test_order_by = ['metrics.`metric1` ASC']
+    expected_runs_ids = ["d57a45f3763e4827b7c03f03d60dbbe1", "4baa8e505cdb49109b6819a497f1a58a"]
+    actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                                           filter_string=test_filter_string,
+                                                           max_results=test_max_result,
+                                                           order_by=test_order_by,
+                                                           run_view_type=ViewType.ACTIVE_ONLY)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
