@@ -91,7 +91,7 @@ def test_delete_experiment(elastic_experiment_get_mock, create_store):
     experiment.update = mock.MagicMock()
     create_store.delete_experiment("1")
     elastic_experiment_get_mock.assert_called_once_with(id="1")
-    experiment.update.assert_called_once_with(lifecycle_stage=LifecycleStage.DELETED)
+    experiment.update.assert_called_once_with(refresh=True, lifecycle_stage=LifecycleStage.DELETED)
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
@@ -101,7 +101,8 @@ def test_restore_experiment(elastic_experiment_get_mock, create_store):
     deleted_experiment.update = mock.MagicMock()
     create_store.restore_experiment("1")
     elastic_experiment_get_mock.assert_called_once_with(id="1")
-    deleted_experiment.update.assert_called_once_with(lifecycle_stage=LifecycleStage.ACTIVE)
+    deleted_experiment.update.assert_called_once_with(
+        refresh=True, lifecycle_stage=LifecycleStage.ACTIVE)
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
@@ -111,7 +112,7 @@ def test_rename_experiment(elastic_experiment_get_mock, create_store):
     experiment.update = mock.MagicMock()
     create_store.rename_experiment("1", "new_name")
     elastic_experiment_get_mock.assert_called_once_with(id="1")
-    experiment.update.assert_called_once_with(name="new_name")
+    experiment.update.assert_called_once_with(refresh=True, name="new_name")
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.save')
