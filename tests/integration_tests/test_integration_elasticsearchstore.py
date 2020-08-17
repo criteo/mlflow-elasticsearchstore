@@ -346,8 +346,6 @@ def test_list_all_columns_deleted(init_store):
                                params=["param7"],
                                tags=["tag7"])
     actual_columns = init_store.list_all_columns("hjb553MBNoOYfhXjp3Tn", ViewType.DELETED_ONLY)
-    print(actual_columns)
-    print(expected_columns)
     assert expected_columns.__dict__ == actual_columns.__dict__
 
 
