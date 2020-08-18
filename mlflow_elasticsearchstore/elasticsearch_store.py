@@ -297,18 +297,19 @@ class ElasticsearchStore(AbstractStore):
     def _get_orderby_clauses(self, order_by_list: List[str], s: Search) -> Search:
         type_dict = {"metric": "latest_metrics", "parameter": "params", "tag": "tags"}
         sort_clauses = []
-        for order_by_clause in order_by_list:
-            (key_type, key, ascending) = SearchUtils.\
-                parse_order_by_for_search_runs(order_by_clause)
-            sort_order = "asc" if ascending else "desc"
-            if not SearchUtils.is_attribute(key_type, "="):
-                key_type = type_dict[key_type]
-                sort_clauses.append({f'{key_type}.value':
-                                     {'order': sort_order, "nested":
-                                      {"path": key_type, "filter":
-                                       {"term": {f'{key_type}.key': key}}}}})
-            else:
-                sort_clauses.append({key: {'order': sort_order}})
+        if order_by_list:
+            for order_by_clause in order_by_list:
+                (key_type, key, ascending) = SearchUtils.\
+                    parse_order_by_for_search_runs(order_by_clause)
+                sort_order = "asc" if ascending else "desc"
+                if not SearchUtils.is_attribute(key_type, "="):
+                    key_type = type_dict[key_type]
+                    sort_clauses.append({f'{key_type}.value':
+                                         {'order': sort_order, "nested":
+                                          {"path": key_type, "filter":
+                                           {"term": {f'{key_type}.key': key}}}}})
+                else:
+                    sort_clauses.append({key: {'order': sort_order}})
         sort_clauses.append({"start_time": {'order': "desc"}})
         sort_clauses.append({"_id": {'order': "asc"}})
         s = s.sort(*sort_clauses)

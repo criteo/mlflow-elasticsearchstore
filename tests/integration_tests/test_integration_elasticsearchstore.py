@@ -359,10 +359,10 @@ def test_list_all_columns_with_fake_experiment_id(init_store):
 
 
 @pytest.mark.parametrize("expected_runs_ids,test_filter_string",
-                         [(["1e5200ae248b476cb0e60286e3f061a4", "4baa8e505cdb49109b6819a497f1a58a"],
+                         [(["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4"],
                            'params.param0="valeur4"'),
                           ([], 'params.param0="test3"'),
-                          (["1e5200ae248b476cb0e60286e3f061a4", "4baa8e505cdb49109b6819a497f1a58a",
+                          (["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
                             "d57a45f3763e4827b7c03f03d60dbbe1"], 'params."param0" LIKE \'%va%\''),
                           ([], 'params."param0" LIKE \'%tes%\''),
                           (["1e5200ae248b476cb0e60286e3f061a4"], 'tags.tag2="val2"'),
@@ -376,13 +376,14 @@ def test_list_all_columns_with_fake_experiment_id(init_store):
                           (["4baa8e505cdb49109b6819a497f1a58a"], 'metrics.metric0<0'),
                           (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1"],
                            'metrics.metric0<=0'),
-                          (["1e5200ae248b476cb0e60286e3f061a4", "4baa8e505cdb49109b6819a497f1a58a",
+                          (["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
                             "d57a45f3763e4827b7c03f03d60dbbe1"], '')])
 @pytest.mark.usefixtures('init_store')
 def test__search_runs_simple_filter(expected_runs_ids, test_filter_string, init_store):
     actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
                                                            filter_string=test_filter_string,
                                                            run_view_type=ViewType.ACTIVE_ONLY)
+    assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
 
@@ -395,6 +396,7 @@ def test__search_runs_ILIKE_filter(init_store):
     actual_runs = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
                                           filter_string='tags."tag0" ILIKE \'%va%\'',
                                           run_view_type=ViewType.ACTIVE_ONLY)
+    assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
 
@@ -415,6 +417,7 @@ def test__search_runs_multiple_filters(expected_runs_ids, test_filter_string, in
     actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
                                                            filter_string=test_filter_string,
                                                            run_view_type=ViewType.ACTIVE_ONLY)
+    assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
 
@@ -431,13 +434,18 @@ def test__search_runs_multiple_filters(expected_runs_ids, test_filter_string, in
                           (["1e5200ae248b476cb0e60286e3f061a4", "d57a45f3763e4827b7c03f03d60dbbe1",
                               "4baa8e505cdb49109b6819a497f1a58a"], ['metrics.`metric0` DESC']),
                           (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1",
-                            "1e5200ae248b476cb0e60286e3f061a4"], ['metrics.`metric0` ASC'])])
+                            "1e5200ae248b476cb0e60286e3f061a4"], ['metrics.`metric0` ASC']),
+                          (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1",
+                            "1e5200ae248b476cb0e60286e3f061a4"], ['metrics.`metric0`']),
+                          (["d57a45f3763e4827b7c03f03d60dbbe1", "1e5200ae248b476cb0e60286e3f061a4",
+                            "4baa8e505cdb49109b6819a497f1a58a"], ['attributes.start_time ASC'])])
 @pytest.mark.usefixtures('init_store')
 def test__search_runs_simple_order_by(expected_runs_ids, test_order_by, init_store):
     actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
                                                            filter_string='',
                                                            run_view_type=ViewType.ACTIVE_ONLY,
                                                            order_by=test_order_by)
+    assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
 
@@ -446,7 +454,7 @@ def test__search_runs_simple_order_by(expected_runs_ids, test_order_by, init_sto
                          [(["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
                             "d57a45f3763e4827b7c03f03d60dbbe1"],
                            ['params.`param0` DESC', 'metrics.`metric0` ASC']),
-                          (["1e5200ae248b476cb0e60286e3f061a4", "4baa8e505cdb49109b6819a497f1a58a",
+                          (["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
                             "d57a45f3763e4827b7c03f03d60dbbe1"],
                            ['params.`param0` DESC', 'params.`param0` ASC'])])
 @pytest.mark.usefixtures('init_store')
@@ -455,15 +463,16 @@ def test__search_runs_multiple_order_by(expected_runs_ids, test_order_by, init_s
                                                            filter_string='',
                                                            run_view_type=ViewType.ACTIVE_ONLY,
                                                            order_by=test_order_by)
+    assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
 
 
 @pytest.mark.parametrize("expected_runs_ids,test_view_type",
-                         [(["1e5200ae248b476cb0e60286e3f061a4", "4baa8e505cdb49109b6819a497f1a58a",
+                         [(["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
                             "d57a45f3763e4827b7c03f03d60dbbe1"], ViewType.ACTIVE_ONLY),
-                          (["1e5200ae248b476cb0e60286e3f061a4", "4baa8e505cdb49109b6819a497f1a58a",
-                            "d57a45f3763e4827b7c03f03d60dbbe1", "6bea870aeaad44e487883ece6e16a6da"],
+                          (["6bea870aeaad44e487883ece6e16a6da", "4baa8e505cdb49109b6819a497f1a58a",
+                            "1e5200ae248b476cb0e60286e3f061a4", "d57a45f3763e4827b7c03f03d60dbbe1"],
                              ViewType.ALL),
                           (["6bea870aeaad44e487883ece6e16a6da"], ViewType.DELETED_ONLY)])
 @pytest.mark.usefixtures('init_store')
@@ -471,13 +480,14 @@ def test__search_runs_run_view_type(expected_runs_ids, test_view_type, init_stor
     actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
                                                            filter_string='',
                                                            run_view_type=test_view_type)
+    assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
 
 
 @pytest.mark.parametrize("expected_runs_ids,test_max_results",
-                         [(["1e5200ae248b476cb0e60286e3f061a4"], 1),
-                          (["1e5200ae248b476cb0e60286e3f061a4", "4baa8e505cdb49109b6819a497f1a58a",
+                         [(["4baa8e505cdb49109b6819a497f1a58a"], 1),
+                          (["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
                             "d57a45f3763e4827b7c03f03d60dbbe1"], 10000)])
 @pytest.mark.usefixtures('init_store')
 def test__search_runs_max_results(expected_runs_ids, test_max_results, init_store):
@@ -485,6 +495,7 @@ def test__search_runs_max_results(expected_runs_ids, test_max_results, init_stor
                                                            filter_string='',
                                                            max_results=test_max_results,
                                                            run_view_type=ViewType.ACTIVE_ONLY)
+    assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
 
@@ -492,10 +503,15 @@ def test__search_runs_max_results(expected_runs_ids, test_max_results, init_stor
 @pytest.mark.xfail
 @pytest.mark.usefixtures('init_store')
 def test__search_runs_max_results_elastic_limit(init_store):
-    init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
-                            filter_string='',
-                            max_results=10001,
-                            run_view_type=ViewType.ACTIVE_ONLY)
+    expected_runs_ids = ["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
+                         "d57a45f3763e4827b7c03f03d60dbbe1"]
+    actual_runs = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                          filter_string='',
+                                          max_results=10001,
+                                          run_view_type=ViewType.ACTIVE_ONLY)
+    assert len(actual_runs) == len(expected_runs_ids)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
 
 
 @pytest.mark.usefixtures('init_store')
@@ -521,5 +537,6 @@ def test__search_runs_complete(init_store):
                                                            max_results=test_max_result,
                                                            order_by=test_order_by,
                                                            run_view_type=ViewType.ACTIVE_ONLY)
+    assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
