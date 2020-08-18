@@ -304,7 +304,7 @@ def test___build_elasticsearch_query(test_parsed_filter, test_query,
 
 @pytest.mark.usefixtures('create_store')
 def test___get_orderby_clauses(create_store):
-    order_by_list = ['metrics.`metric0` ASC', 'params.`param0` DESC']
+    order_by_list = ['metrics.`metric0` ASC', 'params.`param0` DESC', 'attributes.start_time ASC']
     actual_query = create_store._get_orderby_clauses(order_by_list=order_by_list, s=Search())
     sort_clauses = [{'latest_metrics.value': {'order': "asc",
                                               "nested": {"path": "latest_metrics",
@@ -312,6 +312,9 @@ def test___get_orderby_clauses(create_store):
                                                                              "metric0"}}}}},
                     {'params.value': {'order': "desc",
                                       "nested": {"path": "params",
-                                                 "filter": {"term": {'params.key': "param0"}}}}}]
+                                                 "filter": {"term": {'params.key': "param0"}}}}},
+                    {"start_time": {'order': "asc"}},
+                    {"start_time": {'order': "desc"}},
+                    {"_id": {'order': "asc"}}]
     expected_query = Search().sort(*sort_clauses)
     assert actual_query == expected_query
