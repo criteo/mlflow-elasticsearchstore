@@ -367,7 +367,6 @@ def test_list_all_columns_with_fake_experiment_id(init_store):
                           ([], 'params."param0" LIKE \'%tes%\''),
                           (["1e5200ae248b476cb0e60286e3f061a4"], 'tags.tag2="val2"'),
                           ([], 'tags.tag0="test3"'),
-                          (["d57a45f3763e4827b7c03f03d60dbbe1"], 'tags."tag0" LIKE \'%Va%\''),
                           ([], 'tags."tag0" LIKE \'%tes%\''),
                           (["d57a45f3763e4827b7c03f03d60dbbe1"], 'tags."tag0" LIKE \'%Va%\''),
                           (["d57a45f3763e4827b7c03f03d60dbbe1"], 'metrics.metric0=0'),
@@ -388,6 +387,18 @@ def test__search_runs_simple_filter(expected_runs_ids, test_filter_string, init_
         assert run._info.run_id == expected_runs_ids[i]
 
 
+@pytest.mark.xfail
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_ILIKE_filter(init_store):
+    expected_runs_ids = ['4baa8e505cdb49109b6819a497f1a58a',
+                         '1e5200ae248b476cb0e60286e3f061a4', 'd57a45f3763e4827b7c03f03d60dbbe1']
+    actual_runs = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                          filter_string='tags."tag0" ILIKE \'%va%\'',
+                                          run_view_type=ViewType.ACTIVE_ONLY)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
+
+
 @pytest.mark.parametrize("expected_runs_ids,test_filter_string",
                          [(["1e5200ae248b476cb0e60286e3f061a4"],
                            'params.param1="test3" and tags.tag1="val2" and metrics.metric1=4'),
@@ -400,7 +411,7 @@ def test__search_runs_simple_filter(expected_runs_ids, test_filter_string, init_
                           (["1e5200ae248b476cb0e60286e3f061a4"], 'tags.tag1="val2" and'
                            ' tags."tag1" LIKE \'%va%\'')])
 @pytest.mark.usefixtures('init_store')
-def test__search_runs_complexe_filter(expected_runs_ids, test_filter_string, init_store):
+def test__search_runs_multiple_filters(expected_runs_ids, test_filter_string, init_store):
     actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
                                                            filter_string=test_filter_string,
                                                            run_view_type=ViewType.ACTIVE_ONLY)
@@ -476,6 +487,15 @@ def test__search_runs_max_results(expected_runs_ids, test_max_results, init_stor
                                                            run_view_type=ViewType.ACTIVE_ONLY)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
+
+
+@pytest.mark.xfail
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_max_results_elastic_limit(init_store):
+    init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                            filter_string='',
+                            max_results=10001,
+                            run_view_type=ViewType.ACTIVE_ONLY)
 
 
 @pytest.mark.usefixtures('init_store')
