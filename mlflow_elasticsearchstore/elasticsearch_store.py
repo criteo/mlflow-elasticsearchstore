@@ -301,13 +301,14 @@ class ElasticsearchStore(AbstractStore):
             (key_type, key, ascending) = SearchUtils.\
                 parse_order_by_for_search_runs(order_by_clause)
             sort_order = "asc" if ascending else "desc"
-            if SearchUtils.is_attribute(key_type, "="):
-                sort_clauses.append({key: {'order': sort_order}})
-            else:
-                sort_clauses.append({f'{type_dict[key_type]}.value':
+            if not SearchUtils.is_attribute(key_type, "="):
+                key_type = type_dict[key_type]
+                sort_clauses.append({f'{key_type}.value':
                                      {'order': sort_order, "nested":
-                                      {"path": type_dict[key_type], "filter":
-                                       {"term": {f'{type_dict[key_type]}.key': key}}}}})
+                                      {"path": key_type, "filter":
+                                       {"term": {f'{key_type}.key': key}}}}})
+            else:
+                sort_clauses.append({key: {'order': sort_order}})
         sort_clauses.append({"start_time": {'order': "desc"}})
         sort_clauses.append({"_id": {'order': "asc"}})
         s = s.sort(*sort_clauses)
