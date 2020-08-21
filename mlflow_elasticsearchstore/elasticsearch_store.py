@@ -60,26 +60,38 @@ class ElasticsearchStore(AbstractStore):
                           artifact_location=hit.artifact_location,
                           lifecycle_stage=hit.lifecycle_stage)
 
-    def _hit_to_mlflow_run(self, hit: Any) -> Run:
+    def _hit_to_mlflow_run(self, hit: Any, inner_hits: bool) -> Run:
         return Run(run_info=self._hit_to_mlflow_run_info(hit),
-                   run_data=self._hit_to_mlflow_run_data(hit))
+                   run_data=self._hit_to_mlflow_run_data(hit, inner_hits))
 
     def _hit_to_mlflow_run_info(self, hit: Any) -> RunInfo:
-        return RunInfo(run_uuid=hit.meta.id, run_id=hit.meta.id,
-                       experiment_id=str(hit.experiment_id),
-                       user_id=hit.user_id,
-                       status=hit.status,
-                       start_time=hit.start_time,
-                       end_time=hit.end_time if hasattr(hit, 'end_time') else None,
-                       lifecycle_stage=hit.lifecycle_stage, artifact_uri=hit.artifact_uri)
+        return RunInfo(run_uuid=hit._id, run_id=hit._id,
+                       experiment_id=str(hit._source.experiment_id),
+                       user_id=hit._source.user_id,
+                       status=hit._source.status,
+                       start_time=hit._source.start_time,
+                       end_time=hit._source.end_time if hasattr(hit._source, 'end_time') else None,
+                       lifecycle_stage=hit._source.lifecycle_stage if
+                       hasattr(hit["_source"], 'lifecycle_stage') else None,
+                       artifact_uri=hit._source.artifact_uri
+                       if hasattr(hit["_source"], 'artifact_uri') else None)
 
-    def _hit_to_mlflow_run_data(self, hit: Any) -> RunData:
-        return RunData(metrics=[self._hit_to_mlflow_metric(m) for m in
-                                (hit.latest_metrics if hasattr(hit, 'latest_metrics') else [])],
-                       params=[self._hit_to_mlflow_param(p) for p in
-                               (hit.params if hasattr(hit, 'params') else [])],
-                       tags=[self._hit_to_mlflow_tag(t) for t in
-                             (hit.tags if hasattr(hit, 'tags') else[])])
+    def _hit_to_mlflow_run_data(self, hit: Any, inner_hits: bool) -> RunData:
+        if inner_hits:
+            metrics = [self._hit_to_mlflow_metric(m["_source"]) for m in
+                       hit.inner_hits.latest_metrics.hits.hits]
+            params = [self._hit_to_mlflow_param(p["_source"]) for p in
+                      hit.inner_hits.params.hits.hits]
+            tags = [self._hit_to_mlflow_tag(t["_source"]) for t in
+                    hit.inner_hits.tags.hits.hits]
+        else:
+            metrics = [self._hit_to_mlflow_metric(m) for m in
+                       (hit._source.latest_metrics if hasattr(hit, 'latest_metrics') else [])]
+            params = [self._hit_to_mlflow_param(p) for p in
+                      (hit._source.params if hasattr(hit, 'params') else [])]
+            tags = [self._hit_to_mlflow_tag(t) for t in
+                    (hit._source.tags if hasattr(hit, 'tags') else[])]
+        return RunData(metrics=metrics, params=params, tags=tags)
 
     def _hit_to_mlflow_metric(self, hit: Any) -> Metric:
         return Metric(key=hit.key, value=hit.value, timestamp=hit.timestamp,
@@ -378,6 +390,27 @@ class ElasticsearchStore(AbstractStore):
         s = s.sort(*sort_clauses)
         return s
 
+    def _column_to_whitelist(self, columns_to_whitelist: List[str], s: Search) -> Search:
+        metrics = []
+        params = []
+        tags = []
+        for col in columns_to_whitelist:
+            word = col.split(".")
+            key = ".".join(word[1:])
+            if word[0] == "metrics":
+                metrics.append(key)
+            elif word[0] == "params":
+                params.append(key)
+            if word[0] == "tags":
+                tags.append(key)
+        s = s.filter('nested', inner_hits={"size": 100, "name": "latest_metrics"},
+                     path="latest_metrics", query=Q('terms', latest_metrics__key=metrics))
+        s = s.filter('nested', inner_hits={"size": 100, "name": "params"}, path="params",
+                     query=Q('terms', params__key=params))
+        s = s.filter('nested', inner_hits={"size": 100, "name": "tags"}, path="tags",
+                     query=Q('terms', tags__key=tags))
+        return s
+
     def _search_runs(self, experiment_ids: List[str], filter_string: str,
                      run_view_type: str, max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
                      order_by: List[str] = None, page_token: str = None,
@@ -394,16 +427,26 @@ class ElasticsearchStore(AbstractStore):
                                   "most {}, but got value {}"
                                   .format(SEARCH_MAX_RESULTS_THRESHOLD, max_results),
                                   INVALID_PARAMETER_VALUE)
+        inner_hits = False
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         parsed_filters = SearchUtils.parse_search_filter(filter_string)
         offset = SearchUtils.parse_start_offset_from_page_token(page_token)
         s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_ids[0]) \
             .filter("terms", lifecycle_stage=stages)
         s = self._build_elasticsearch_query(parsed_filters, s)
+        if columns_to_whitelist is not None:
+            inner_hits = True
+            s = self._column_to_whitelist(columns_to_whitelist, s)
+            s = s.source(excludes=["metrics.*", "latest_metrics*",
+                                   "params*", "tags*"])
+        else:
+            s = s.source(excludes=["metrics.*"])
         s = self._get_orderby_clauses(order_by, s)
-        response = s.source(excludes=["metrics.*"])[offset:offset + max_results].execute()
-        runs = [self._hit_to_mlflow_run(r) for r in response]
+        response = s[offset: offset + max_results].execute()
+        runs = [self._hit_to_mlflow_run(hit, inner_hits) for hit in response["hits"]["hits"]]
         next_page_token = compute_next_token(len(runs))
+        for r in runs:
+            print(r.__dict__)
         return runs, next_page_token
 
     def update_artifacts_location(self, run_id: str, new_artifacts_location: str) -> None:
