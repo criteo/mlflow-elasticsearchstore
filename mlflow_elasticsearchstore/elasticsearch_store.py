@@ -433,7 +433,6 @@ class ElasticsearchStore(AbstractStore):
                                   "most {}, but got value {}"
                                   .format(SEARCH_MAX_RESULTS_THRESHOLD, max_results),
                                   INVALID_PARAMETER_VALUE)
-        inner_hits = False
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         parsed_filters = SearchUtils.parse_search_filter(filter_string)
         offset = SearchUtils.parse_start_offset_from_page_token(page_token)
