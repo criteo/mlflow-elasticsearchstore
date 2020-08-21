@@ -396,6 +396,27 @@ class ElasticsearchStore(AbstractStore):
         sort_clauses.append({"_id": {'order': "asc"}})
         return sort_clauses
 
+    def _column_to_whitelist(self, columns_to_whitelist: List[str], s: Search) -> Search:
+        metrics = []
+        params = []
+        tags = []
+        for col in columns_to_whitelist:
+            word = col.split(".")
+            key = ".".join(word[1:])
+            if word[0] == "metrics":
+                metrics.append(key)
+            elif word[0] == "params":
+                params.append(key)
+            if word[0] == "tags":
+                tags.append(key)
+        s = s.filter('nested', inner_hits={"size": 100, "name": "latest_metrics"},
+                     path="latest_metrics", query=Q('terms', latest_metrics__key=metrics))
+        s = s.filter('nested', inner_hits={"size": 100, "name": "params"}, path="params",
+                     query=Q('terms', params__key=params))
+        s = s.filter('nested', inner_hits={"size": 100, "name": "tags"}, path="tags",
+                     query=Q('terms', tags__key=tags))
+        return s
+
     def _search_runs(self, experiment_ids: List[str], filter_string: str,
                      run_view_type: str, max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
                      order_by: List[str] = None, page_token: str = None,
@@ -412,6 +433,7 @@ class ElasticsearchStore(AbstractStore):
                                   "most {}, but got value {}"
                                   .format(SEARCH_MAX_RESULTS_THRESHOLD, max_results),
                                   INVALID_PARAMETER_VALUE)
+        inner_hits = False
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         parsed_filters = SearchUtils.parse_search_filter(filter_string)
         offset = SearchUtils.parse_start_offset_from_page_token(page_token)
@@ -425,6 +447,8 @@ class ElasticsearchStore(AbstractStore):
             columns_to_whitelist)
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict) for hit in response]
         next_page_token = compute_next_token(len(runs))
+        for r in runs:
+            print(r.__dict__)
         return runs, next_page_token
 
     def update_artifacts_location(self, run_id: str, new_artifacts_location: str) -> None:
