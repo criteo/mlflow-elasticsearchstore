@@ -390,7 +390,5 @@ class ElasticsearchStore(AbstractStore):
         s = self._get_orderby_clauses(order_by, s)
         response = s[offset: offset + max_results].execute()
         runs = [self._hit_to_mlflow_run(hit, inner_hits) for hit in response["hits"]["hits"]]
-        for r in runs:
-            print(r.__dict__)
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
