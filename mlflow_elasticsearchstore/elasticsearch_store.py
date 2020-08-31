@@ -449,8 +449,6 @@ class ElasticsearchStore(AbstractStore):
             columns_to_whitelist)
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict) for hit in response]
         next_page_token = compute_next_token(len(runs))
-        for r in runs:
-            print(r.__dict__)
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
 
