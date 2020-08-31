@@ -396,7 +396,7 @@ class ElasticsearchStore(AbstractStore):
         sort_clauses.append({"_id": {'order': "asc"}})
         return sort_clauses
 
-    def _column_to_whitelist(self, columns_to_whitelist: List[str], s: Search) -> Search:
+    def _columns_to_whitelist(self, columns_to_whitelist: List[str], s: Search) -> Search:
         metrics = []
         params = []
         tags = []
@@ -407,14 +407,17 @@ class ElasticsearchStore(AbstractStore):
                 metrics.append(key)
             elif word[0] == "params":
                 params.append(key)
-            if word[0] == "tags":
+            elif word[0] == "tags":
                 tags.append(key)
-        s = s.filter('nested', inner_hits={"size": 100, "name": "latest_metrics"},
-                     path="latest_metrics", query=Q('terms', latest_metrics__key=metrics))
-        s = s.filter('nested', inner_hits={"size": 100, "name": "params"}, path="params",
-                     query=Q('terms', params__key=params))
-        s = s.filter('nested', inner_hits={"size": 100, "name": "tags"}, path="tags",
-                     query=Q('terms', tags__key=tags))
+        s = s.query('bool', filter=[Q('nested', inner_hits={"size": 100, "name": "latest_metrics"},
+                                      path="latest_metrics",
+                                      query=Q('terms', latest_metrics__key=metrics)) |
+                                    Q('nested', inner_hits={"size": 100, "name": "params"},
+                                      path="params",
+                                      query=Q('terms', params__key=params)) |
+                                    Q('nested', inner_hits={"size": 100, "name": "tags"},
+                                      path="tags",
+                                      query=Q('terms', tags__key=tags))])
         return s
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str,
@@ -448,6 +451,7 @@ class ElasticsearchStore(AbstractStore):
         next_page_token = compute_next_token(len(runs))
         for r in runs:
             print(r.__dict__)
+        next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
 
     def update_artifacts_location(self, run_id: str, new_artifacts_location: str) -> None:
