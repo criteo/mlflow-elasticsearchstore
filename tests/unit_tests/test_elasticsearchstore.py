@@ -295,16 +295,16 @@ def test__update_latest_metric_if_necessary(test_elastic_metric, test_elastic_la
                            Q('bool', must_not=[Q("term", tags__value="val2")]),
                            "tags")])
 @pytest.mark.usefixtures('create_store')
-def test___build_elasticsearch_query(test_parsed_filter, test_query,
-                                     test_type, create_store):
+def test__build_elasticsearch_query(test_parsed_filter, test_query,
+                                    test_type, create_store):
     actual_query = create_store._build_elasticsearch_query(
         parsed_filters=[test_parsed_filter], s=Search())
-    expected_query = Search().query('nested', path=test_type, query=test_query)
+    expected_query = Search().filter('nested', path=test_type, query=test_query)
     assert actual_query == expected_query
 
 
 @pytest.mark.usefixtures('create_store')
-def test___get_orderby_clauses(create_store):
+def test__get_orderby_clauses(create_store):
     order_by_list = ['metrics.`metric0` ASC', 'params.`param0` DESC', 'attributes.start_time ASC']
     actual_query = create_store._get_orderby_clauses(order_by_list=order_by_list, s=Search())
     sort_clauses = [{'latest_metrics.value': {'order': "asc",
@@ -318,4 +318,26 @@ def test___get_orderby_clauses(create_store):
                     {"start_time": {'order': "desc"}},
                     {"_id": {'order': "asc"}}]
     expected_query = Search().sort(*sort_clauses)
+    assert actual_query == expected_query
+
+
+@pytest.mark.usefixtures('create_store')
+def test__columns_to_whitelist(create_store):
+    col_to_whitelist = ['attributes.start_time', 'metrics.metric0', 'metrics.metric1', 'tags.tag3']
+    actual_query = create_store._columns_to_whitelist(
+        columns_to_whitelist=col_to_whitelist, s=Search())
+    expected_query = Search().query('bool',
+                                    filter=[Q('nested', inner_hits={"size": 100,
+                                                                    "name": "latest_metrics"},
+                                              path="latest_metrics",
+                                              query=Q('terms',
+                                                      latest_metrics__key=["metric0", "metric1"])) |
+                                            Q('nested', inner_hits={"size": 100,
+                                                                    "name": "params"},
+                                              path="params",
+                                              query=Q('terms', params__key=[])) |
+                                            Q('nested', inner_hits={"size": 100,
+                                                                    "name": "tags"},
+                                              path="tags",
+                                              query=Q('terms', tags__key=["tag3"]))])
     assert actual_query == expected_query

@@ -79,18 +79,24 @@ class ElasticsearchStore(AbstractStore):
     def _hit_to_mlflow_run_data(self, hit: Any, inner_hits: bool) -> RunData:
         if inner_hits:
             metrics = [self._hit_to_mlflow_metric(m["_source"]) for m in
-                       hit.inner_hits.latest_metrics.hits.hits]
+                       (hit.inner_hits.latest_metrics.hits.hits
+                        if hasattr(hit.inner_hits, 'latest_metrics') else [])]
             params = [self._hit_to_mlflow_param(p["_source"]) for p in
-                      hit.inner_hits.params.hits.hits]
+                      (hit.inner_hits.params.hits.hits
+                       if hasattr(hit.inner_hits, 'tags') else[])]
             tags = [self._hit_to_mlflow_tag(t["_source"]) for t in
-                    hit.inner_hits.tags.hits.hits]
+                    (hit.inner_hits.tags.hits.hits
+                     if hasattr(hit.inner_hits, 'tags') else[])]
         else:
             metrics = [self._hit_to_mlflow_metric(m) for m in
-                       (hit._source.latest_metrics if hasattr(hit, 'latest_metrics') else [])]
+                       (hit._source.latest_metrics
+                        if hasattr(hit._source, 'latest_metrics') else [])]
             params = [self._hit_to_mlflow_param(p) for p in
-                      (hit._source.params if hasattr(hit, 'params') else [])]
+                      (hit._source.params
+                       if hasattr(hit._source, 'params') else [])]
             tags = [self._hit_to_mlflow_tag(t) for t in
-                    (hit._source.tags if hasattr(hit, 'tags') else[])]
+                    (hit._source.tags
+                     if hasattr(hit._source, 'tags') else[])]
         return RunData(metrics=metrics, params=params, tags=tags)
 
     def _hit_to_mlflow_metric(self, hit: Any) -> Metric:
@@ -342,7 +348,7 @@ class ElasticsearchStore(AbstractStore):
                 query = query_type & Q('bool', must_not=[query_val])
             else:
                 query = query_type & Q('bool', must=[query_val])
-            s = s.query('nested', path=type_dict[key_type], query=query)
+            s = s.filter('nested', path=type_dict[key_type], query=query)
         return s
 
     def _get_orderby_clauses(self, order_by_list: List[str], s: Search) -> Search:
@@ -366,7 +372,7 @@ class ElasticsearchStore(AbstractStore):
         s = s.sort(*sort_clauses)
         return s
 
-    def _column_to_whitelist(self, columns_to_whitelist: List[str], s: Search) -> Search:
+    def _columns_to_whitelist(self, columns_to_whitelist: List[str], s: Search) -> Search:
         metrics = []
         params = []
         tags = []
@@ -377,14 +383,17 @@ class ElasticsearchStore(AbstractStore):
                 metrics.append(key)
             elif word[0] == "params":
                 params.append(key)
-            if word[0] == "tags":
+            elif word[0] == "tags":
                 tags.append(key)
-        s = s.filter('nested', inner_hits={"size": 100, "name": "latest_metrics"},
-                     path="latest_metrics", query=Q('terms', latest_metrics__key=metrics))
-        s = s.filter('nested', inner_hits={"size": 100, "name": "params"}, path="params",
-                     query=Q('terms', params__key=params))
-        s = s.filter('nested', inner_hits={"size": 100, "name": "tags"}, path="tags",
-                     query=Q('terms', tags__key=tags))
+        s = s.query('bool', filter=[Q('nested', inner_hits={"size": 100, "name": "latest_metrics"},
+                                      path="latest_metrics",
+                                      query=Q('terms', latest_metrics__key=metrics)) |
+                                    Q('nested', inner_hits={"size": 100, "name": "params"},
+                                      path="params",
+                                      query=Q('terms', params__key=params)) |
+                                    Q('nested', inner_hits={"size": 100, "name": "tags"},
+                                      path="tags",
+                                      query=Q('terms', tags__key=tags))])
         return s
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str,
@@ -412,7 +421,7 @@ class ElasticsearchStore(AbstractStore):
         s = self._build_elasticsearch_query(parsed_filters, s)
         if columns_to_whitelist is not None:
             inner_hits = True
-            s = self._column_to_whitelist(columns_to_whitelist, s)
+            s = self._columns_to_whitelist(columns_to_whitelist, s)
             s = s.source(excludes=["metrics.*", "latest_metrics*",
                                    "params*", "tags*"])
         else:
@@ -420,9 +429,9 @@ class ElasticsearchStore(AbstractStore):
         s = self._get_orderby_clauses(order_by, s)
         response = s[offset: offset + max_results].execute()
         runs = [self._hit_to_mlflow_run(hit, inner_hits) for hit in response["hits"]["hits"]]
-        next_page_token = compute_next_token(len(runs))
         for r in runs:
             print(r.__dict__)
+        next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
 
     def log_batch(self, run_id: str, metrics: List[Metric],

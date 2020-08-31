@@ -612,6 +612,24 @@ def test__search_runs_max_results_threshold(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
+def test__search_runs_columns_to_whitelist(init_store):
+    test_columns_to_whitelist = ['metrics.metric0', 'metrics.metric1', 'tags.tag3']
+    actual_runs, next_page_token = \
+        init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                filter_string='',
+                                run_view_type=ViewType.ACTIVE_ONLY,
+                                columns_to_whitelist=test_columns_to_whitelist)
+    assert len(actual_runs) == 3
+    for run in actual_runs:
+        assert len(run._data._metrics) == 2
+        assert 'metric0' in run._data._metrics
+        assert 'metric1' in run._data._metrics
+        assert len(run._data._params) == 0
+        assert len(run._data._tags) == 1
+        assert 'tag3' in run._data._tags
+
+
+@pytest.mark.usefixtures('init_store')
 def test__search_runs_complete(init_store):
     test_filter_string = 'params."param0" LIKE \'%va%\' and tags.tag1="valeur4" and'
     ' metrics.metric1>9 and metrics.metric0<=0 and metrics.metric1>0'
