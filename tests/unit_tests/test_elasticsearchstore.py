@@ -295,16 +295,16 @@ def test__update_latest_metric_if_necessary(test_elastic_metric, test_elastic_la
                            Q('bool', must_not=[Q("term", tags__value="val2")]),
                            "tags")])
 @pytest.mark.usefixtures('create_store')
-def test___build_elasticsearch_query(test_parsed_filter, test_query,
-                                     test_type, create_store):
+def test__build_elasticsearch_query(test_parsed_filter, test_query,
+                                    test_type, create_store):
     actual_query = create_store._build_elasticsearch_query(
         parsed_filters=[test_parsed_filter], s=Search())
-    expected_query = Search().query('nested', path=test_type, query=test_query)
+    expected_query = Search().filter('nested', path=test_type, query=test_query)
     assert actual_query == expected_query
 
 
 @pytest.mark.usefixtures('create_store')
-def test___get_orderby_clauses(create_store):
+def test__get_orderby_clauses(create_store):
     order_by_list = ['metrics.`metric0` ASC', 'params.`param0` DESC', 'attributes.start_time ASC']
     actual_query = create_store._get_orderby_clauses(order_by_list=order_by_list, s=Search())
     sort_clauses = [{'latest_metrics.value': {'order': "asc",
