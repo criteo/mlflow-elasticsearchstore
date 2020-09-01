@@ -297,9 +297,8 @@ def test__update_latest_metric_if_necessary(test_elastic_metric, test_elastic_la
 @pytest.mark.usefixtures('create_store')
 def test__build_elasticsearch_query(test_parsed_filter, test_query,
                                     test_type, create_store):
-    actual_query = create_store._build_elasticsearch_query(
-        parsed_filters=[test_parsed_filter], s=Search())
-    expected_query = Search().filter('nested', path=test_type, query=test_query)
+    actual_query = create_store._build_elasticsearch_query(parsed_filters=[test_parsed_filter])
+    expected_query = [Q('nested', path=test_type, query=test_query)]
     assert actual_query == expected_query
 
 
@@ -324,20 +323,14 @@ def test__get_orderby_clauses(create_store):
 @pytest.mark.usefixtures('create_store')
 def test__columns_to_whitelist(create_store):
     col_to_whitelist = ['attributes.start_time', 'metrics.metric0', 'metrics.metric1', 'tags.tag3']
-    actual_query = create_store._columns_to_whitelist(
-        columns_to_whitelist=col_to_whitelist, s=Search())
-    expected_query = Search().query('bool',
-                                    filter=[Q('nested', inner_hits={"size": 100,
-                                                                    "name": "latest_metrics"},
-                                              path="latest_metrics",
-                                              query=Q('terms',
-                                                      latest_metrics__key=["metric0", "metric1"])) |
-                                            Q('nested', inner_hits={"size": 100,
-                                                                    "name": "params"},
-                                              path="params",
-                                              query=Q('terms', params__key=[])) |
-                                            Q('nested', inner_hits={"size": 100,
-                                                                    "name": "tags"},
-                                              path="tags",
-                                              query=Q('terms', tags__key=["tag3"]))])
-    assert actual_query == expected_query
+    actual_queries = create_store._columns_to_whitelist(columns_to_whitelist=col_to_whitelist)
+    expected_queries = [Q('nested', inner_hits={"size": 100, "name": "latest_metrics"},
+                          path="latest_metrics",
+                          query=Q('terms', latest_metrics__key=["metric0", "metric1"])),
+                        Q('nested', inner_hits={"size": 100, "name": "params"},
+                          path="params",
+                          query=Q('terms', params__key=[])),
+                        Q('nested', inner_hits={"size": 100, "name": "tags"},
+                          path="tags",
+                          query=Q('terms', tags__key=["tag3"]))]
+    assert actual_queries == expected_queries
