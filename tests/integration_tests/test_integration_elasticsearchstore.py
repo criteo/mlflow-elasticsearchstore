@@ -335,6 +335,38 @@ def test_experiment_set_tag(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
+def test_log_batch(init_store):
+    new_metrics = [Metric(key="metric_batch1", value=1, timestamp=1, step=1),
+                   Metric(key="metric_batch2", value=2, timestamp=1, step=1)]
+    new_params = [Param(key="param_batch1", value="batch1"),
+                  Param(key="param_batch2", value="batch2")]
+    new_tags = [RunTag(key="tag_batch1", value="batch1"),
+                RunTag(key="tag_batch2", value="batch2")]
+    expected_metrics = [ElasticMetric(key="metric_batch1", value=1,
+                                      timestamp=1, step=1, is_nan=False),
+                        ElasticMetric(key="metric_batch2", value=2,
+                                      timestamp=1, step=1, is_nan=False)]
+    expected_latest_metrics = [ElasticLatestMetric(key="metric_batch1", value=1,
+                                                   timestamp=1, step=1, is_nan=False),
+                               ElasticLatestMetric(key="metric_batch2", value=2,
+                                                   timestamp=1, step=1, is_nan=False)]
+    expected_params = [ElasticParam(key="param_batch1", value="batch1"),
+                       ElasticParam(key="param_batch2", value="batch2")]
+    expected_tags = [ElasticTag(key="tag_batch1", value="batch1"),
+                     ElasticTag(key="tag_batch2", value="batch2")]
+    init_store.log_batch("7b2e71956f3d4c08b042624a8d83700d", new_metrics, new_params, new_tags)
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    for metric in expected_metrics:
+        assert metric in actual_run.metrics
+    for latest_metric in expected_latest_metrics:
+        assert latest_metric in actual_run.latest_metrics
+    for param in expected_params:
+        assert param in actual_run.params
+    for tag in expected_tags:
+        assert tag in actual_run.tags
+
+
+@pytest.mark.usefixtures('init_store')
 def test_get_metric_history(init_store):
     expected_metric_history = [Metric(key="metric0", value=15.0, timestamp=1597324762700, step=0),
                                Metric(key="metric0", value=7.0, timestamp=1597324762742, step=1),
