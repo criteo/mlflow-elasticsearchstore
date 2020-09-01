@@ -342,3 +342,7 @@ class ElasticsearchStore(AbstractStore):
         runs = [self._hit_to_mlflow_run(r) for r in response]
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
+
+    def update_artifacts_location(self, run_id: str, new_artifacts_location: str) -> None:
+        run = self._get_run(run_id=run_id)
+        run.update(artifact_uri=new_artifacts_location)

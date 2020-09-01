@@ -540,3 +540,11 @@ def test__search_runs_complete(init_store):
     assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
+
+
+@pytest.mark.usefixtures('init_store')
+def test_update_artifacts_location(init_store):
+    init_store.update_artifacts_location(
+        "7b2e71956f3d4c08b042624a8d83700d", "new_artifact_location")
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    assert actual_run.artifact_uri == "new_artifact_location"

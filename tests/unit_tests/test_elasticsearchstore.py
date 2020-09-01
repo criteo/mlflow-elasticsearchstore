@@ -319,3 +319,13 @@ def test___get_orderby_clauses(create_store):
                     {"_id": {'order': "asc"}}]
     expected_query = Search().sort(*sort_clauses)
     assert actual_query == expected_query
+
+
+@mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+@pytest.mark.usefixtures('create_store')
+def test_update_artifacts_location(elastic_run_get_mock, create_store):
+    elastic_run_get_mock.return_value = run
+    run.update = mock.MagicMock()
+    create_store.update_artifacts_location("1", "update_artifacts_location")
+    elastic_run_get_mock.assert_called_once_with(id="1")
+    run.update.assert_called_once_with(artifact_uri="update_artifacts_location")
