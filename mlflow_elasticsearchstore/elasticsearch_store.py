@@ -396,7 +396,7 @@ class ElasticsearchStore(AbstractStore):
         sort_clauses.append({"_id": {'order': "asc"}})
         return sort_clauses
 
-    def _columns_to_whitelist(self, columns_to_whitelist: List[str], s: Search) -> Search:
+    def _columns_to_whitelist(self, columns_to_whitelist: List[str]) -> List[Q]:
         metrics = []
         params = []
         tags = []
@@ -409,16 +409,16 @@ class ElasticsearchStore(AbstractStore):
                 params.append(key)
             elif word[0] == "tags":
                 tags.append(key)
-        s = s.query('bool', filter=[Q('nested', inner_hits={"size": 100, "name": "latest_metrics"},
-                                      path="latest_metrics",
-                                      query=Q('terms', latest_metrics__key=metrics)) |
-                                    Q('nested', inner_hits={"size": 100, "name": "params"},
-                                      path="params",
-                                      query=Q('terms', params__key=params)) |
-                                    Q('nested', inner_hits={"size": 100, "name": "tags"},
-                                      path="tags",
-                                      query=Q('terms', tags__key=tags))])
-        return s
+        col_to_whitelist_query = [Q('nested', inner_hits={"size": 100, "name": "latest_metrics"},
+                                    path="latest_metrics",
+                                    query=Q('terms', latest_metrics__key=metrics)),
+                                  Q('nested', inner_hits={"size": 100, "name": "params"},
+                                    path="params",
+                                    query=Q('terms', params__key=params)),
+                                  Q('nested', inner_hits={"size": 100, "name": "tags"},
+                                    path="tags",
+                                    query=Q('terms', tags__key=tags))]
+        return col_to_whitelist_query
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str,
                      run_view_type: str, max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
@@ -448,7 +448,6 @@ class ElasticsearchStore(AbstractStore):
         columns_to_whitelist_key_dict = self._build_columns_to_whitelist_key_dict(
             columns_to_whitelist)
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict) for hit in response]
-        next_page_token = compute_next_token(len(runs))
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
 
