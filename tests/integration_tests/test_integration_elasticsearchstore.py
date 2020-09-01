@@ -106,6 +106,21 @@ def test_rename_experiment_of_deleted_experiment(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
+def test_set_experiment_tag_of_non_active_experiment(init_store):
+    new_experiment_tag = ExperimentTag(key="new_tag", value="new_value")
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.set_experiment_tag("hzb553MBNoOYfhXjsXRa", new_experiment_tag)
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_create_run_in_non_activeexperiment(init_store):
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.create_run("hzb553MBNoOYfhXjsXRa", "1", 10, [])
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
 def test_restore_experiment(init_store):
     init_store.restore_experiment("hzb553MBNoOYfhXjsXRa")
     restored_exp = init_store.get_experiment("hzb553MBNoOYfhXjsXRa")
@@ -195,6 +210,30 @@ def test_delete_run_of_deleted_run(init_store):
 def test_update_run_info_of_deleted_run(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.update_run_info("d57a45f3763e4827b7c03f03d60dbbe1", RunStatus.FINISHED, 20)
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_metric_of_deleted_run(init_store):
+    new_metric = Metric(key="new_metric", value=7.0, timestamp=10, step=0)
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.log_metric("d57a45f3763e4827b7c03f03d60dbbe1", new_metric)
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_param_of_deleted_run(init_store):
+    new_param = Param(key="new_param", value="new_value")
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.log_param("d57a45f3763e4827b7c03f03d60dbbe1", new_param)
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_set_tag_of_deleted_run(init_store):
+    new_tag = RunTag(key="new_tag", value="new_value")
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.set_tag("d57a45f3763e4827b7c03f03d60dbbe1", new_tag)
         assert "must be in the 'active' state" in str(excinfo.value)
 
 

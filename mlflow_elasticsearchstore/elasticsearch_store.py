@@ -8,12 +8,21 @@ from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD, SEARCH_MAX_RESULTS_DEFAULT
-from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE
+from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE, INTERNAL_ERROR
 from mlflow.entities import (Experiment, RunTag, Metric, Param, Run, RunInfo, RunData,
                              RunStatus, ExperimentTag, LifecycleStage, ViewType, Columns)
 from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
 from mlflow.utils.search_utils import SearchUtils
+from mlflow.utils.validation import (
+    _validate_batch_log_limits,
+    _validate_batch_log_data,
+    _validate_run_id,
+    _validate_metric,
+    _validate_param,
+    _validate_experiment_tag,
+    _validate_tag,
+)
 
 from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun, ElasticMetric,
                                               ElasticParam, ElasticTag,
@@ -119,6 +128,14 @@ class ElasticsearchStore(AbstractStore):
         experiment.save(refresh=True)
         return str(experiment.meta.id)
 
+    def _check_experiment_is_active(self, experiment: Experiment) -> None:
+        if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
+            raise MlflowException(
+                "The experiment {} must be in the 'active' state. "
+                "Current state is {}.".format(experiment.experiment_id, experiment.lifecycle_stage),
+                INVALID_PARAMETER_VALUE,
+            )
+
     def _get_experiment(self, experiment_id: str) -> ElasticExperiment:
         experiment = ElasticExperiment.get(id=experiment_id)
         return experiment
@@ -148,6 +165,7 @@ class ElasticsearchStore(AbstractStore):
                    start_time: int, tags: List[RunTag]) -> Run:
         run_id = uuid.uuid4().hex
         experiment = self.get_experiment(experiment_id)
+        self._check_experiment_is_active(experiment)
         artifact_location = append_to_uri_path(experiment.artifact_location, run_id,
                                                ElasticsearchStore.ARTIFACTS_FOLDER_NAME)
 
@@ -220,6 +238,7 @@ class ElasticsearchStore(AbstractStore):
             run.latest_metrics.append(new_latest_metric)
 
     def log_metric(self, run_id: str, metric: Metric) -> None:
+        _validate_metric(metric.key, metric.value, metric.timestamp, metric.step)
         is_nan = math.isnan(metric.value)
         if is_nan:
             value = 0.
@@ -228,6 +247,7 @@ class ElasticsearchStore(AbstractStore):
         else:
             value = metric.value
         run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
         new_metric = ElasticMetric(key=metric.key,
                                    value=value,
                                    timestamp=metric.timestamp,
@@ -238,20 +258,26 @@ class ElasticsearchStore(AbstractStore):
         run.save()
 
     def log_param(self, run_id: str, param: Param) -> None:
+        _validate_param(param.key, param.value)
         run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
         new_param = ElasticParam(key=param.key,
                                  value=param.value)
         run.params.append(new_param)
         run.save()
 
     def set_experiment_tag(self, experiment_id: str, tag: ExperimentTag) -> None:
+        _validate_experiment_tag(tag.key, tag.value)
         experiment = self._get_experiment(experiment_id)
+        self._check_experiment_is_active(experiment.to_mlflow_entity())
         new_tag = ElasticExperimentTag(key=tag.key, value=tag.value)
         experiment.tags.append(new_tag)
         experiment.save()
 
     def set_tag(self, run_id: str, tag: RunTag) -> None:
+        _validate_tag(tag.key, tag.value)
         run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
         new_tag = ElasticTag(key=tag.key,
                              value=tag.value)
         run.tags.append(new_tag)
@@ -399,3 +425,20 @@ class ElasticsearchStore(AbstractStore):
         runs = [self._hit_to_mlflow_run(hit, inner_hits) for hit in response["hits"]["hits"]]
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
+
+    def log_batch(self, run_id: str, metrics: List[Metric],
+                  params: List[Param], tags: List[RunTag]) -> None:
+        _validate_run_id(run_id)
+        _validate_batch_log_data(metrics, params, tags)
+        _validate_batch_log_limits(metrics, params, tags)
+        try:
+            for param in params:
+                self.log_param(run_id, param)
+            for metric in metrics:
+                self.log_metric(run_id, metric)
+            for tag in tags:
+                self.set_tag(run_id, tag)
+        except MlflowException as e:
+            raise e
+        except Exception as e:
+            raise MlflowException(e, INTERNAL_ERROR)
