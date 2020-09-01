@@ -397,7 +397,7 @@ class ElasticsearchStore(AbstractStore):
         sort_clauses.append({"_id": {'order': "asc"}})
         return sort_clauses
 
-    def _columns_to_whitelist(self, columns_to_whitelist: List[str], s: Search) -> Search:
+    def _columns_to_whitelist(self, columns_to_whitelist: List[str]) -> List[Q]:
         metrics = []
         params = []
         tags = []
@@ -410,16 +410,16 @@ class ElasticsearchStore(AbstractStore):
                 params.append(key)
             elif word[0] == "tags":
                 tags.append(key)
-        s = s.query('bool', filter=[Q('nested', inner_hits={"size": 100, "name": "latest_metrics"},
-                                      path="latest_metrics",
-                                      query=Q('terms', latest_metrics__key=metrics)) |
-                                    Q('nested', inner_hits={"size": 100, "name": "params"},
-                                      path="params",
-                                      query=Q('terms', params__key=params)) |
-                                    Q('nested', inner_hits={"size": 100, "name": "tags"},
-                                      path="tags",
-                                      query=Q('terms', tags__key=tags))])
-        return s
+        col_to_whitelist_query = [Q('nested', inner_hits={"size": 100, "name": "latest_metrics"},
+                                    path="latest_metrics",
+                                    query=Q('terms', latest_metrics__key=metrics)),
+                                  Q('nested', inner_hits={"size": 100, "name": "params"},
+                                    path="params",
+                                    query=Q('terms', params__key=params)),
+                                  Q('nested', inner_hits={"size": 100, "name": "tags"},
+                                    path="tags",
+                                    query=Q('terms', tags__key=tags))]
+        return col_to_whitelist_query
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str,
                      run_view_type: str, max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
@@ -441,9 +441,6 @@ class ElasticsearchStore(AbstractStore):
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         parsed_filters = SearchUtils.parse_search_filter(filter_string)
         offset = SearchUtils.parse_start_offset_from_page_token(page_token)
-
-
-<< << << < HEAD
         filter_queries = [Q("match", experiment_id=experiment_ids[0]),
                           Q("terms", lifecycle_stage=stages)]
         filter_queries += self._build_elasticsearch_query(parsed_filters)
@@ -456,26 +453,28 @@ class ElasticsearchStore(AbstractStore):
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict)
                 for hit in response]
         next_page_token = compute_next_token(len(runs))
-== == == =
         s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_ids[0]) \
             .filter("terms", lifecycle_stage=stages)
         s = self._build_elasticsearch_query(parsed_filters, s)
+        must_query = [Q("match", experiment_id=experiment_ids[0]),
+                      Q("terms", lifecycle_stage=stages)]
+        must_query += self._build_elasticsearch_query(parsed_filters)
         if columns_to_whitelist is not None:
             inner_hits = True
-            s = self._columns_to_whitelist(columns_to_whitelist, s)
-            s = s.source(excludes=["metrics.*", "latest_metrics*",
-                                   "params*", "tags*"])
+            should_query = self._columns_to_whitelist(columns_to_whitelist)
+            exclude_source = ["metrics.*", "latest_metrics*", "params*", "tags*"]
         else:
-            s = s.source(excludes=["metrics.*"])
+            should_query = []
+            exclude_source = ["metrics.*"]
+        final_query = Q('bool',
+                        must=must_query,
+                        should=should_query,
+                        minimum_should_match=0
+                        )
+        s = Search(index="mlflow-runs").query('bool', filter=[final_query])
         s = self._get_orderby_clauses(order_by, s)
-        response = s[offset: offset + max_results].execute()
+        response = s.source(excludes=exclude_source)[offset: offset + max_results].execute()
         runs = [self._hit_to_mlflow_run(hit, inner_hits) for hit in response["hits"]["hits"]]
-<< << << < HEAD
->>>>>> > 3d38eb4... add testing + fix
-        for r in runs:
-            print(r.__dict__)
-== == == =
->>>>>> > fd1d449... remove print
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
 
