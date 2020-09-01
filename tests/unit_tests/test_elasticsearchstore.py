@@ -297,9 +297,8 @@ def test__update_latest_metric_if_necessary(test_elastic_metric, test_elastic_la
 @pytest.mark.usefixtures('create_store')
 def test__build_elasticsearch_query(test_parsed_filter, test_query,
                                     test_type, create_store):
-    actual_query = create_store._build_elasticsearch_query(
-        parsed_filters=[test_parsed_filter], s=Search())
-    expected_query = Search().filter('nested', path=test_type, query=test_query)
+    actual_query = create_store._build_elasticsearch_query(parsed_filters=[test_parsed_filter])
+    expected_query = [Q('nested', path=test_type, query=test_query)]
     assert actual_query == expected_query
 
 
