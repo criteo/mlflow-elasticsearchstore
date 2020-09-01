@@ -1,6 +1,7 @@
 import pytest
 import sys
 import math
+import time
 from elasticsearch.exceptions import NotFoundError
 
 from mlflow.entities import (Experiment, ExperimentTag, Run, RunInfo, RunData,
@@ -426,6 +427,22 @@ def test_list_all_columns_active(init_store):
 
 @pytest.mark.skipif(not columns_imported, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
+def test_list_all_columns_big(init_store):
+    new_tags = []
+    for i in range(100):
+        init_store.set_tag("7b2e71956f3d4c08b042624a8d83700d", RunTag(f'my_tag{i}', f'val{i}'))
+        new_tags.append(f'my_tag{i}')
+    new_tags.sort()
+    time.sleep(1)
+    expected_columns = Columns(metrics=["inf_metric", "metric0", "metric1",
+                                        "nan_metric", "negative_inf_metric", "new_metric"],
+                               params=["new_param", "param0", "param1", "param2", "param3"],
+                               tags=[*new_tags, *["new_tag", "tag0", "tag1", "tag2", "tag3"]])
+    actual_columns = init_store.list_all_columns("hTb553MBNoOYfhXjnnQh", ViewType.ACTIVE_ONLY)
+    assert expected_columns.__dict__ == actual_columns.__dict__
+
+
+@pytest.mark.usefixtures('init_store')
 def test_list_all_columns_deleted(init_store):
     expected_columns = Columns(metrics=["metric7"],
                                params=["param7"],
@@ -510,15 +527,15 @@ def test__search_runs_multiple_filters(expected_runs_ids, test_filter_string, in
 
 @pytest.mark.parametrize("expected_runs_ids,test_order_by",
                          [(["1e5200ae248b476cb0e60286e3f061a4", "d57a45f3763e4827b7c03f03d60dbbe1",
-                            "4baa8e505cdb49109b6819a497f1a58a"], ['params.`param2` DESC']),
+                             "4baa8e505cdb49109b6819a497f1a58a"], ['params.`param2` DESC']),
                           (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1",
                             "1e5200ae248b476cb0e60286e3f061a4"], ['params.`param2` ASC']),
                           (["1e5200ae248b476cb0e60286e3f061a4", "d57a45f3763e4827b7c03f03d60dbbe1",
-                              "4baa8e505cdb49109b6819a497f1a58a"], ['tags.`tag2` DESC']),
+                            "4baa8e505cdb49109b6819a497f1a58a"], ['tags.`tag2` DESC']),
                           (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1",
                             "1e5200ae248b476cb0e60286e3f061a4"], ['tags.`tag2` ASC']),
                           (["1e5200ae248b476cb0e60286e3f061a4", "d57a45f3763e4827b7c03f03d60dbbe1",
-                              "4baa8e505cdb49109b6819a497f1a58a"], ['metrics.`metric0` DESC']),
+                            "4baa8e505cdb49109b6819a497f1a58a"], ['metrics.`metric0` DESC']),
                           (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1",
                             "1e5200ae248b476cb0e60286e3f061a4"], ['metrics.`metric0` ASC']),
                           (["4baa8e505cdb49109b6819a497f1a58a", "d57a45f3763e4827b7c03f03d60dbbe1",
@@ -538,7 +555,7 @@ def test__search_runs_simple_order_by(expected_runs_ids, test_order_by, init_sto
 
 @pytest.mark.parametrize("expected_runs_ids,test_order_by",
                          [(["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
-                            "d57a45f3763e4827b7c03f03d60dbbe1"],
+                             "d57a45f3763e4827b7c03f03d60dbbe1"],
                            ['params.`param0` DESC', 'metrics.`metric0` ASC']),
                           (["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
                             "d57a45f3763e4827b7c03f03d60dbbe1"],
@@ -556,10 +573,10 @@ def test__search_runs_multiple_order_by(expected_runs_ids, test_order_by, init_s
 
 @pytest.mark.parametrize("expected_runs_ids,test_view_type",
                          [(["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
-                            "d57a45f3763e4827b7c03f03d60dbbe1"], ViewType.ACTIVE_ONLY),
+                             "d57a45f3763e4827b7c03f03d60dbbe1"], ViewType.ACTIVE_ONLY),
                           (["6bea870aeaad44e487883ece6e16a6da", "4baa8e505cdb49109b6819a497f1a58a",
                             "1e5200ae248b476cb0e60286e3f061a4", "d57a45f3763e4827b7c03f03d60dbbe1"],
-                             ViewType.ALL),
+                           ViewType.ALL),
                           (["6bea870aeaad44e487883ece6e16a6da"], ViewType.DELETED_ONLY)])
 @pytest.mark.usefixtures('init_store')
 def test__search_runs_run_view_type(expected_runs_ids, test_view_type, init_store):
@@ -603,11 +620,11 @@ def test__search_runs_max_results_elastic_limit(init_store):
 @pytest.mark.usefixtures('init_store')
 def test__search_runs_max_results_threshold(init_store):
     with pytest.raises(MlflowException) as excinfo:
-        actual_runs, next_page_token = \
-            init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
-                                    filter_string='',
-                                    max_results=50001,
-                                    run_view_type=ViewType.ACTIVE_ONLY)
+        actual_runs, next_page_token = init_store._search_runs(
+            experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+            filter_string='',
+            max_results=50001,
+            run_view_type=ViewType.ACTIVE_ONLY)
         assert "Invalid value for request parameter max_results" in str(excinfo.value)
 
 
