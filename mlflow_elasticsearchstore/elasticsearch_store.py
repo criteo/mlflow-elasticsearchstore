@@ -289,25 +289,25 @@ class ElasticsearchStore(AbstractStore):
     def _list_columns(self, experiment_id: str, stages: List[LifecycleStage],
                       column_type: str, columns: List[str],
                       after_key: str = None, size: int = 100) -> None:
-        s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_id) \
-            .filter("terms", lifecycle_stage=stages)
-        if after_key is None:
-            s.aggs.bucket(column_type, 'nested', path=column_type) \
-                .bucket(f'{column_type}_keys', "composite", size=size,
-                        sources=[{"key": {"terms": {"field": f'{column_type}.key'}}}])
-        else:
-            s.aggs.bucket(column_type, 'nested', path=column_type) \
-                .bucket(f'{column_type}_keys', "composite", size=size,
-                        sources=[{"key": {"terms": {"field": f'{column_type}.key'}}}],
-                        after={"key": after_key})
-        response = s.source(False).execute()
-        new_columns = [column.key.key for column in attrgetter(
-            f'aggregations.{column_type}.{column_type}_keys.buckets')(response)]
-        columns += new_columns
-        if len(new_columns) == size:
+        new_columns = [str(i) for i in range(100)]
+        while(len(new_columns) == size):
+            s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_id) \
+                .filter("terms", lifecycle_stage=stages)
+            if after_key is None:
+                s.aggs.bucket(column_type, 'nested', path=column_type) \
+                    .bucket(f'{column_type}_keys', "composite", size=size,
+                            sources=[{"key": {"terms": {"field": f'{column_type}.key'}}}])
+            else:
+                s.aggs.bucket(column_type, 'nested', path=column_type) \
+                    .bucket(f'{column_type}_keys', "composite", size=size,
+                            sources=[{"key": {"terms": {"field": f'{column_type}.key'}}}],
+                            after={"key": after_key})
+            response = s.source(False).execute()
+            new_columns = [column.key.key for column in attrgetter(
+                f'aggregations.{column_type}.{column_type}_keys.buckets')(response)]
+            columns += new_columns
             after_key = attrgetter(
                 f'aggregations.{column_type}.{column_type}_keys.after_key.key')(response)
-            return self._list_columns(experiment_id, stages, column_type, columns, after_key)
 
     def list_all_columns(self, experiment_id: str, run_view_type: str) -> 'Columns':
         columns: Dict[str, List[str]] = {"latest_metrics": [],
