@@ -396,7 +396,7 @@ class ElasticsearchStore(AbstractStore):
         sort_clauses.append({"_id": {'order': "asc"}})
         return sort_clauses
 
-    def _columns_to_whitelist(self, columns_to_whitelist: List[str]) -> List[Q]:
+    def _get_column_to_whitelist_query(self, columns_to_whitelist: List[str]) -> List[Q]:
         metrics = []
         params = []
         tags = []
