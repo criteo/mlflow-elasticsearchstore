@@ -306,8 +306,9 @@ class ElasticsearchStore(AbstractStore):
             new_columns = [column.key.key for column in attrgetter(
                 f'aggregations.{column_type}.{column_type}_keys.buckets')(response)]
             columns += new_columns
-            after_key = attrgetter(
-                f'aggregations.{column_type}.{column_type}_keys.after_key.key')(response)
+            if (len(new_columns) == size):
+                after_key = attrgetter(
+                    f'aggregations.{column_type}.{column_type}_keys.after_key.key')(response)
 
     def list_all_columns(self, experiment_id: str, run_view_type: str) -> 'Columns':
         columns: Dict[str, List[str]] = {"latest_metrics": [],
