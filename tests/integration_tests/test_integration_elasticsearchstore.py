@@ -429,19 +429,25 @@ def test_list_all_columns_active(init_store):
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_big(init_store):
     new_tags = []
+    new_tags_key = []
     for i in range(100):
-        init_store.set_tag("7b2e71956f3d4c08b042624a8d83700d", RunTag(f'my_tag{i}', f'val{i}'))
-        new_tags.append(f'my_tag{i}')
-    new_tags.sort()
+        new_tags.append(RunTag(f'my_tag{i}', f'val{i}'))
+        new_tags_key.append(f'my_tag{i}')
+    init_store.log_batch("7b2e71956f3d4c08b042624a8d83700d", metrics=[], params=[], tags=new_tags)
+    new_tags_key.sort()
     time.sleep(1)
-    expected_columns = Columns(metrics=["inf_metric", "metric0", "metric1",
-                                        "nan_metric", "negative_inf_metric", "new_metric"],
-                               params=["new_param", "param0", "param1", "param2", "param3"],
-                               tags=[*new_tags, *["new_tag", "tag0", "tag1", "tag2", "tag3"]])
+    expected_columns = Columns(metrics=["inf_metric", "metric0", "metric1", "metric_batch1",
+                                        "metric_batch2", "nan_metric",
+                                        "negative_inf_metric", "new_metric"],
+                               params=["new_param", "param0", "param1",
+                                       "param2", "param3", "param_batch1", "param_batch2"],
+                               tags=[*new_tags_key, *["new_tag", "tag0", "tag1", "tag2", "tag3",
+                                                      "tag_batch1", "tag_batch2"]])
     actual_columns = init_store.list_all_columns("hTb553MBNoOYfhXjnnQh", ViewType.ACTIVE_ONLY)
     assert expected_columns.__dict__ == actual_columns.__dict__
 
 
+@pytest.mark.skipif(not columns_imported, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_deleted(init_store):
     expected_columns = Columns(metrics=["metric7"],
