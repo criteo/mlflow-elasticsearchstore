@@ -7,7 +7,9 @@ from mlflow.entities import (Experiment, ExperimentTag, Run, RunInfo, RunData,
                              Metric, Param, RunTag, ViewType, LifecycleStage, RunStatus)
 try:
     from mlflow.entities import Columns
+    columns_imported = True
 except ImportError:
+    columns_imported = False
     pass
 from mlflow.exceptions import MlflowException
 
@@ -401,9 +403,10 @@ def test_get_metric_history_with_fake_run_id(init_store):
     assert actual_metric_history == expected_metric_history
 
 
-@pytest.mark.skipif("Columns" not in sys.modules, reason="open source version of mlflow")
+@pytest.mark.skipif(not columns_imported, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_all(init_store):
+    print("Columns" in sys.modules)
     expected_columns = Columns(metrics=["metric0", "metric1", "metric7"],
                                params=["param0", "param1", "param2", "param3", "param7"],
                                tags=["tag0", "tag1", "tag2", "tag3", "tag7"])
@@ -411,7 +414,7 @@ def test_list_all_columns_all(init_store):
     assert expected_columns.__dict__ == actual_columns.__dict__
 
 
-@pytest.mark.skipif("Columns" not in sys.modules, reason="open source version of mlflow")
+@pytest.mark.skipif(not columns_imported, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_active(init_store):
     expected_columns = Columns(metrics=["metric0", "metric1"],
@@ -421,7 +424,7 @@ def test_list_all_columns_active(init_store):
     assert expected_columns.__dict__ == actual_columns.__dict__
 
 
-@pytest.mark.skipif("Columns" not in sys.modules, reason="open source version of mlflow")
+@pytest.mark.skipif(not columns_imported, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_deleted(init_store):
     expected_columns = Columns(metrics=["metric7"],
@@ -431,7 +434,7 @@ def test_list_all_columns_deleted(init_store):
     assert expected_columns.__dict__ == actual_columns.__dict__
 
 
-@pytest.mark.skipif("Columns" not in sys.modules, reason="open source version of mlflow")
+@pytest.mark.skipif(not columns_imported, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_with_fake_experiment_id(init_store):
     expected_columns = Columns(metrics=[],
