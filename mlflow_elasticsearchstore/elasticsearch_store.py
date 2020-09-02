@@ -397,7 +397,7 @@ class ElasticsearchStore(AbstractStore):
         s = s.sort(*sort_clauses)
         return s
 
-    def _columns_to_whitelist(self, columns_to_whitelist: List[str]) -> List[Q]:
+    def _get_column_to_whitelist_query(self, columns_to_whitelist: List[str]) -> List[Q]:
         metrics = []
         params = []
         tags = []
@@ -446,7 +446,7 @@ class ElasticsearchStore(AbstractStore):
         must_query += self._build_elasticsearch_query(parsed_filters)
         if columns_to_whitelist is not None:
             inner_hits = True
-            should_query = self._columns_to_whitelist(columns_to_whitelist)
+            should_query = self._get_column_to_whitelist_query(columns_to_whitelist)
             exclude_source = ["metrics.*", "latest_metrics*", "params*", "tags*"]
         else:
             should_query = []
