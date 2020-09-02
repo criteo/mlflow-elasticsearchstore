@@ -322,14 +322,16 @@ def test__get_orderby_clauses(create_store):
 
 @pytest.mark.usefixtures('create_store')
 def test__columns_to_whitelist(create_store):
-    col_to_whitelist = ['attributes.start_time', 'metrics.metric0', 'metrics.metric1', 'tags.tag3']
-    actual_queries = create_store._columns_to_whitelist(columns_to_whitelist=col_to_whitelist)
+    col_to_whitelist = ['attributes.start_time', 'metrics.metric0',
+                        'metrics.metric1', 'tags.tag3', 'params.param2']
+    actual_queries = create_store._get_column_to_whitelist_query(
+        columns_to_whitelist=col_to_whitelist)
     expected_queries = [Q('nested', inner_hits={"size": 100, "name": "latest_metrics"},
                           path="latest_metrics",
                           query=Q('terms', latest_metrics__key=["metric0", "metric1"])),
                         Q('nested', inner_hits={"size": 100, "name": "params"},
                           path="params",
-                          query=Q('terms', params__key=[])),
+                          query=Q('terms', params__key=["param2"])),
                         Q('nested', inner_hits={"size": 100, "name": "tags"},
                           path="tags",
                           query=Q('terms', tags__key=["tag3"]))]
