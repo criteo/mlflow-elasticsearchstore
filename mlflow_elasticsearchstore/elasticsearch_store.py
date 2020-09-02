@@ -219,7 +219,7 @@ class ElasticsearchStore(AbstractStore):
         if not (latest_metric_exist):
             run.latest_metrics.append(new_latest_metric)
 
-    def log_metric(self, run_id: str, metric: Metric) -> None:
+    def _log_metric(self, run: Run, metric: Metric) -> None:
         _validate_metric(metric.key, metric.value, metric.timestamp, metric.step)
         is_nan = math.isnan(metric.value)
         if is_nan:
@@ -228,8 +228,6 @@ class ElasticsearchStore(AbstractStore):
             value = 1.7976931348623157e308 if metric.value > 0 else -1.7976931348623157e308
         else:
             value = metric.value
-        run = self._get_run(run_id=run_id)
-        self._check_run_is_active(run)
         new_metric = ElasticMetric(key=metric.key,
                                    value=value,
                                    timestamp=metric.timestamp,
@@ -237,15 +235,23 @@ class ElasticsearchStore(AbstractStore):
                                    is_nan=is_nan)
         self._update_latest_metric_if_necessary(new_metric, run)
         run.metrics.append(new_metric)
-        run.save()
 
-    def log_param(self, run_id: str, param: Param) -> None:
-        _validate_param(param.key, param.value)
+    def log_metric(self, run_id: str, metric: Metric) -> None:
         run = self._get_run(run_id=run_id)
         self._check_run_is_active(run)
+        self._log_metric(run, metric)
+        run.save()
+
+    def _log_param(self, run: Run, param: Param) -> None:
+        _validate_param(param.key, param.value)
         new_param = ElasticParam(key=param.key,
                                  value=param.value)
         run.params.append(new_param)
+
+    def log_param(self, run_id: str, param: Param) -> None:
+        run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
+        self._log_param(run, param)
         run.save()
 
     def set_experiment_tag(self, experiment_id: str, tag: ExperimentTag) -> None:
@@ -256,13 +262,16 @@ class ElasticsearchStore(AbstractStore):
         experiment.tags.append(new_tag)
         experiment.save()
 
-    def set_tag(self, run_id: str, tag: RunTag) -> None:
+    def _set_tag(self, run: Run, tag: RunTag) -> None:
         _validate_tag(tag.key, tag.value)
-        run = self._get_run(run_id=run_id)
-        self._check_run_is_active(run)
         new_tag = ElasticTag(key=tag.key,
                              value=tag.value)
         run.tags.append(new_tag)
+
+    def set_tag(self, run_id: str, tag: RunTag) -> None:
+        run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
+        self._set_tag(run, tag)
         run.save()
 
     def get_metric_history(self, run_id: str, metric_key: str) -> List[Metric]:
@@ -374,13 +383,16 @@ class ElasticsearchStore(AbstractStore):
         _validate_run_id(run_id)
         _validate_batch_log_data(metrics, params, tags)
         _validate_batch_log_limits(metrics, params, tags)
+        run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
         try:
-            for param in params:
-                self.log_param(run_id, param)
             for metric in metrics:
-                self.log_metric(run_id, metric)
+                self._log_metric(run, metric)
+            for param in params:
+                self._log_param(run, param)
             for tag in tags:
-                self.set_tag(run_id, tag)
+                self._set_tag(run, tag)
+            run.save()
         except MlflowException as e:
             raise e
         except Exception as e:

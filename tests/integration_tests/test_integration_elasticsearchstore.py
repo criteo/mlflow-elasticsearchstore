@@ -337,7 +337,8 @@ def test_experiment_set_tag(init_store):
 @pytest.mark.usefixtures('init_store')
 def test_log_batch(init_store):
     new_metrics = [Metric(key="metric_batch1", value=1, timestamp=1, step=1),
-                   Metric(key="metric_batch2", value=2, timestamp=1, step=1)]
+                   Metric(key="metric_batch2", value=2, timestamp=1, step=1),
+                   Metric(key="metric_batch1", value=5, timestamp=2, step=2)]
     new_params = [Param(key="param_batch1", value="batch1"),
                   Param(key="param_batch2", value="batch2")]
     new_tags = [RunTag(key="tag_batch1", value="batch1"),
@@ -345,9 +346,11 @@ def test_log_batch(init_store):
     expected_metrics = [ElasticMetric(key="metric_batch1", value=1,
                                       timestamp=1, step=1, is_nan=False),
                         ElasticMetric(key="metric_batch2", value=2,
-                                      timestamp=1, step=1, is_nan=False)]
-    expected_latest_metrics = [ElasticLatestMetric(key="metric_batch1", value=1,
-                                                   timestamp=1, step=1, is_nan=False),
+                                      timestamp=1, step=1, is_nan=False),
+                        ElasticMetric(key="metric_batch1", value=5,
+                                      timestamp=2, step=2, is_nan=False)]
+    expected_latest_metrics = [ElasticLatestMetric(key="metric_batch1", value=5,
+                                                   timestamp=2, step=2, is_nan=False),
                                ElasticLatestMetric(key="metric_batch2", value=2,
                                                    timestamp=1, step=1, is_nan=False)]
     expected_params = [ElasticParam(key="param_batch1", value="batch1"),
