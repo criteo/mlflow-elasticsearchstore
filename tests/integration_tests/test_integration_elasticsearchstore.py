@@ -1,9 +1,14 @@
 import pytest
+import sys
 import math
 from elasticsearch.exceptions import NotFoundError
 
-from mlflow.entities import (Experiment, ExperimentTag, Run, RunInfo, RunData, Columns,
+from mlflow.entities import (Experiment, ExperimentTag, Run, RunInfo, RunData,
                              Metric, Param, RunTag, ViewType, LifecycleStage, RunStatus)
+try:
+    from mlflow.entities import Columns
+except ImportError:
+    pass
 from mlflow.exceptions import MlflowException
 
 from mlflow_elasticsearchstore.elasticsearch_store import ElasticsearchStore
@@ -106,6 +111,21 @@ def test_rename_experiment_of_deleted_experiment(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
+def test_set_experiment_tag_of_non_active_experiment(init_store):
+    new_experiment_tag = ExperimentTag(key="new_tag", value="new_value")
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.set_experiment_tag("hzb553MBNoOYfhXjsXRa", new_experiment_tag)
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_create_run_in_non_activeexperiment(init_store):
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.create_run("hzb553MBNoOYfhXjsXRa", "1", 10, [])
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
 def test_restore_experiment(init_store):
     init_store.restore_experiment("hzb553MBNoOYfhXjsXRa")
     restored_exp = init_store.get_experiment("hzb553MBNoOYfhXjsXRa")
@@ -195,6 +215,30 @@ def test_delete_run_of_deleted_run(init_store):
 def test_update_run_info_of_deleted_run(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.update_run_info("d57a45f3763e4827b7c03f03d60dbbe1", RunStatus.FINISHED, 20)
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_metric_of_deleted_run(init_store):
+    new_metric = Metric(key="new_metric", value=7.0, timestamp=10, step=0)
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.log_metric("d57a45f3763e4827b7c03f03d60dbbe1", new_metric)
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_log_param_of_deleted_run(init_store):
+    new_param = Param(key="new_param", value="new_value")
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.log_param("d57a45f3763e4827b7c03f03d60dbbe1", new_param)
+        assert "must be in the 'active' state" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures('init_store')
+def test_set_tag_of_deleted_run(init_store):
+    new_tag = RunTag(key="new_tag", value="new_value")
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.set_tag("d57a45f3763e4827b7c03f03d60dbbe1", new_tag)
         assert "must be in the 'active' state" in str(excinfo.value)
 
 
@@ -296,6 +340,41 @@ def test_experiment_set_tag(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
+def test_log_batch(init_store):
+    new_metrics = [Metric(key="metric_batch1", value=1, timestamp=1, step=1),
+                   Metric(key="metric_batch2", value=2, timestamp=1, step=1),
+                   Metric(key="metric_batch1", value=5, timestamp=2, step=2)]
+    new_params = [Param(key="param_batch1", value="batch1"),
+                  Param(key="param_batch2", value="batch2")]
+    new_tags = [RunTag(key="tag_batch1", value="batch1"),
+                RunTag(key="tag_batch2", value="batch2")]
+    expected_metrics = [ElasticMetric(key="metric_batch1", value=1,
+                                      timestamp=1, step=1, is_nan=False),
+                        ElasticMetric(key="metric_batch2", value=2,
+                                      timestamp=1, step=1, is_nan=False),
+                        ElasticMetric(key="metric_batch1", value=5,
+                                      timestamp=2, step=2, is_nan=False)]
+    expected_latest_metrics = [ElasticLatestMetric(key="metric_batch1", value=5,
+                                                   timestamp=2, step=2, is_nan=False),
+                               ElasticLatestMetric(key="metric_batch2", value=2,
+                                                   timestamp=1, step=1, is_nan=False)]
+    expected_params = [ElasticParam(key="param_batch1", value="batch1"),
+                       ElasticParam(key="param_batch2", value="batch2")]
+    expected_tags = [ElasticTag(key="tag_batch1", value="batch1"),
+                     ElasticTag(key="tag_batch2", value="batch2")]
+    init_store.log_batch("7b2e71956f3d4c08b042624a8d83700d", new_metrics, new_params, new_tags)
+    actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
+    for metric in expected_metrics:
+        assert metric in actual_run.metrics
+    for latest_metric in expected_latest_metrics:
+        assert latest_metric in actual_run.latest_metrics
+    for param in expected_params:
+        assert param in actual_run.params
+    for tag in expected_tags:
+        assert tag in actual_run.tags
+
+
+@pytest.mark.usefixtures('init_store')
 def test_get_metric_history(init_store):
     expected_metric_history = [Metric(key="metric0", value=15.0, timestamp=1597324762700, step=0),
                                Metric(key="metric0", value=7.0, timestamp=1597324762742, step=1),
@@ -322,6 +401,7 @@ def test_get_metric_history_with_fake_run_id(init_store):
     assert actual_metric_history == expected_metric_history
 
 
+@pytest.mark.skipif("Columns" not in sys.modules, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_all(init_store):
     expected_columns = Columns(metrics=["metric0", "metric1", "metric7"],
@@ -331,6 +411,7 @@ def test_list_all_columns_all(init_store):
     assert expected_columns.__dict__ == actual_columns.__dict__
 
 
+@pytest.mark.skipif("Columns" not in sys.modules, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_active(init_store):
     expected_columns = Columns(metrics=["metric0", "metric1"],
@@ -340,6 +421,7 @@ def test_list_all_columns_active(init_store):
     assert expected_columns.__dict__ == actual_columns.__dict__
 
 
+@pytest.mark.skipif("Columns" not in sys.modules, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_deleted(init_store):
     expected_columns = Columns(metrics=["metric7"],
@@ -349,6 +431,7 @@ def test_list_all_columns_deleted(init_store):
     assert expected_columns.__dict__ == actual_columns.__dict__
 
 
+@pytest.mark.skipif("Columns" not in sys.modules, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_with_fake_experiment_id(init_store):
     expected_columns = Columns(metrics=[],

@@ -8,12 +8,25 @@ from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD, SEARCH_MAX_RESULTS_DEFAULT
-from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE
+from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE, INTERNAL_ERROR
 from mlflow.entities import (Experiment, RunTag, Metric, Param, Run, RunInfo, RunData,
-                             RunStatus, ExperimentTag, LifecycleStage, ViewType, Columns)
+                             RunStatus, ExperimentTag, LifecycleStage, ViewType)
+try:
+    from mlflow.entities import Columns
+except ImportError:
+    pass
 from mlflow.exceptions import MlflowException
 from mlflow.utils.uri import append_to_uri_path
 from mlflow.utils.search_utils import SearchUtils
+from mlflow.utils.validation import (
+    _validate_batch_log_limits,
+    _validate_batch_log_data,
+    _validate_run_id,
+    _validate_metric,
+    _validate_param,
+    _validate_experiment_tag,
+    _validate_tag,
+)
 
 from mlflow_elasticsearchstore.models import (ElasticExperiment, ElasticRun, ElasticMetric,
                                               ElasticParam, ElasticTag,
@@ -101,6 +114,14 @@ class ElasticsearchStore(AbstractStore):
         experiment.save(refresh=True)
         return str(experiment.meta.id)
 
+    def _check_experiment_is_active(self, experiment: Experiment) -> None:
+        if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
+            raise MlflowException(
+                "The experiment {} must be in the 'active' state. "
+                "Current state is {}.".format(experiment.experiment_id, experiment.lifecycle_stage),
+                INVALID_PARAMETER_VALUE,
+            )
+
     def _get_experiment(self, experiment_id: str) -> ElasticExperiment:
         experiment = ElasticExperiment.get(id=experiment_id)
         return experiment
@@ -130,6 +151,7 @@ class ElasticsearchStore(AbstractStore):
                    start_time: int, tags: List[RunTag]) -> Run:
         run_id = uuid.uuid4().hex
         experiment = self.get_experiment(experiment_id)
+        self._check_experiment_is_active(experiment)
         artifact_location = append_to_uri_path(experiment.artifact_location, run_id,
                                                ElasticsearchStore.ARTIFACTS_FOLDER_NAME)
 
@@ -201,7 +223,8 @@ class ElasticsearchStore(AbstractStore):
         if not (latest_metric_exist):
             run.latest_metrics.append(new_latest_metric)
 
-    def log_metric(self, run_id: str, metric: Metric) -> None:
+    def _log_metric(self, run: Run, metric: Metric) -> None:
+        _validate_metric(metric.key, metric.value, metric.timestamp, metric.step)
         is_nan = math.isnan(metric.value)
         if is_nan:
             value = 0.
@@ -209,7 +232,6 @@ class ElasticsearchStore(AbstractStore):
             value = 1.7976931348623157e308 if metric.value > 0 else -1.7976931348623157e308
         else:
             value = metric.value
-        run = self._get_run(run_id=run_id)
         new_metric = ElasticMetric(key=metric.key,
                                    value=value,
                                    timestamp=metric.timestamp,
@@ -217,26 +239,43 @@ class ElasticsearchStore(AbstractStore):
                                    is_nan=is_nan)
         self._update_latest_metric_if_necessary(new_metric, run)
         run.metrics.append(new_metric)
+
+    def log_metric(self, run_id: str, metric: Metric) -> None:
+        run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
+        self._log_metric(run, metric)
         run.save()
 
-    def log_param(self, run_id: str, param: Param) -> None:
-        run = self._get_run(run_id=run_id)
+    def _log_param(self, run: Run, param: Param) -> None:
+        _validate_param(param.key, param.value)
         new_param = ElasticParam(key=param.key,
                                  value=param.value)
         run.params.append(new_param)
+
+    def log_param(self, run_id: str, param: Param) -> None:
+        run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
+        self._log_param(run, param)
         run.save()
 
     def set_experiment_tag(self, experiment_id: str, tag: ExperimentTag) -> None:
+        _validate_experiment_tag(tag.key, tag.value)
         experiment = self._get_experiment(experiment_id)
+        self._check_experiment_is_active(experiment.to_mlflow_entity())
         new_tag = ElasticExperimentTag(key=tag.key, value=tag.value)
         experiment.tags.append(new_tag)
         experiment.save()
 
-    def set_tag(self, run_id: str, tag: RunTag) -> None:
-        run = self._get_run(run_id=run_id)
+    def _set_tag(self, run: Run, tag: RunTag) -> None:
+        _validate_tag(tag.key, tag.value)
         new_tag = ElasticTag(key=tag.key,
                              value=tag.value)
         run.tags.append(new_tag)
+
+    def set_tag(self, run_id: str, tag: RunTag) -> None:
+        run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
+        self._set_tag(run, tag)
         run.save()
 
     def get_metric_history(self, run_id: str, metric_key: str) -> List[Metric]:
@@ -247,7 +286,7 @@ class ElasticsearchStore(AbstractStore):
                  response["hits"]["hits"][0].inner_hits.metrics.hits.hits]
                 if (len(response["hits"]["hits"]) != 0) else [])
 
-    def list_all_columns(self, experiment_id: str, run_view_type: str) -> Columns:
+    def list_all_columns(self, experiment_id: str, run_view_type: str) -> 'Columns':
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_id) \
             .filter("terms", lifecycle_stage=stages)
@@ -346,3 +385,23 @@ class ElasticsearchStore(AbstractStore):
     def update_artifacts_location(self, run_id: str, new_artifacts_location: str) -> None:
         run = self._get_run(run_id=run_id)
         run.update(artifact_uri=new_artifacts_location)
+
+    def log_batch(self, run_id: str, metrics: List[Metric],
+                  params: List[Param], tags: List[RunTag]) -> None:
+        _validate_run_id(run_id)
+        _validate_batch_log_data(metrics, params, tags)
+        _validate_batch_log_limits(metrics, params, tags)
+        run = self._get_run(run_id=run_id)
+        self._check_run_is_active(run)
+        try:
+            for metric in metrics:
+                self._log_metric(run, metric)
+            for param in params:
+                self._log_param(run, param)
+            for tag in tags:
+                self._set_tag(run, tag)
+            run.save()
+        except MlflowException as e:
+            raise e
+        except Exception as e:
+            raise MlflowException(e, INTERNAL_ERROR)

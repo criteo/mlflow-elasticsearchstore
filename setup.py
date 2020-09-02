@@ -1,9 +1,10 @@
 import os
 import setuptools
+import versioneer
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-DESCRIPTION = ("")
+DESCRIPTION = ("Mlflow plugin to use ElasticSearch as backend for MLflow tracking service")
 
 try:
     LONG_DESCRIPTION = open(os.path.join(here, "README.md"), encoding="utf-8").read()
@@ -19,6 +20,7 @@ def _read_reqs(relpath):
 
 
 REQUIREMENTS = _read_reqs("requirements.txt")
+TESTS_REQUIREMENTS = _read_reqs("tests-requirements.txt")
 
 CLASSIFIERS = [
     "Development Status :: 4 - Beta",
@@ -37,7 +39,8 @@ CLASSIFIERS = [
 setuptools.setup(
     name="mlflow-elasticsearchstore",
     packages=setuptools.find_packages(),
-    version=1.0,
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     install_requires=REQUIREMENTS,
     tests_require=["pytest"],
     python_requires=">=3.6",
