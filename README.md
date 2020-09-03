@@ -2,6 +2,12 @@
 
 Mlflow plugin to use ElasticSearch as backend for MLflow tracking service. To use this plugin you need a running instance of Elasticsearch 6.X.
 
+Run 'pip install mlflow-elasticsearchstore' to register the plugin as an entrypoint with Elasticsearch backend.
+
+```bash
+$ pip install mlflow-elasticsearchstore
+```
+
 ## Development
 
 In a python environment (you can use the one where mlflow is already installed): 
