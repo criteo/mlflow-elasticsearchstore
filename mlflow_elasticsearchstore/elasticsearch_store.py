@@ -298,14 +298,14 @@ class ElasticsearchStore(AbstractStore):
             f'aggregations.{column_type}.{column_type}_keys.buckets')(response)]
         columns += new_columns
         while (len(new_columns) == size):
-            after_key = attrgetter(
+            last_col = attrgetter(
                 f'aggregations.{column_type}.{column_type}_keys.after_key.key')(response)
             s = Search(index="mlflow-runs").filter("match", experiment_id=experiment_id) \
                 .filter("terms", lifecycle_stage=stages)
             s.aggs.bucket(column_type, 'nested', path=column_type) \
                 .bucket(f'{column_type}_keys', "composite", size=size,
                         sources=[{"key": {"terms": {"field": f'{column_type}.key'}}}],
-                        after={"key": after_key})
+                        after={"key": last_col})
             response = s.source(False).execute()
             new_columns = [column.key.key for column in attrgetter(
                 f'aggregations.{column_type}.{column_type}_keys.buckets')(response)]
@@ -315,11 +315,10 @@ class ElasticsearchStore(AbstractStore):
         columns: Dict[str, List[str]] = {"latest_metrics": [],
                                          "params": [],
                                          "tags": []}
-        after_key = None
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         for column_type in ['latest_metrics', 'params', 'tags']:
             self._list_columns(experiment_id, stages, column_type,
-                               columns[column_type], after_key)
+                               columns[column_type])
         return Columns(metrics=columns['latest_metrics'],
                        params=columns['params'],
                        tags=columns['tags'])
