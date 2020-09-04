@@ -466,14 +466,11 @@ class ElasticsearchStore(AbstractStore):
         else:
             should_query = []
             exclude_source = ["metrics.*"]
-        final_query = Q('bool',
-                        must=must_query,
-                        should=should_query,
-                        minimum_should_match=0
-                        )
-        s = Search(index="mlflow-runs").query('bool', filter=[final_query])
+        s = Search(index="mlflow-runs").query('bool', filter=must_query,
+                                              should=should_query, minimum_should_match=0)
         s = self._get_orderby_clauses(order_by, s)
         response = s.source(excludes=exclude_source)[offset: offset + max_results].execute()
+        print(response.to_dict())
         runs = [self._hit_to_mlflow_run(hit, inner_hits) for hit in response["hits"]["hits"]]
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
