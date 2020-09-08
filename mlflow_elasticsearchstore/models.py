@@ -1,4 +1,5 @@
 import datetime
+from elasticsearch.client import IndicesClient
 from elasticsearch_dsl import (Document, InnerDoc, Nested, Text,
                                Keyword, Double, Integer, Long, Boolean)
 
@@ -128,3 +129,61 @@ class ElasticRun(Document):
             params=[p.to_mlflow_entity() for p in self.params],
             tags=[t.to_mlflow_entity() for t in self.tags])
         return Run(run_info=run_info, run_data=run_data)
+
+
+class ExperimentIndex():
+    name = "mlflow-experiments"
+    settings = {
+        "number_of_shards": 1,
+        "number_of_replicas": 1
+    }
+    mappings = {
+        "properties": {
+            "name": {"type": "keyword"},
+            "artifact_location": {"type": "text"},
+            "lifecycle_stage": {"type": "keyword"},
+            "tags": {"type": "flattened"}
+        }
+    }
+
+    @classmethod
+    def init(cls, indices: IndicesClient) -> None:
+        if not (indices.exists(index=[cls.name])):
+            indices.create(index=cls.name,
+                           body={"settings": cls.settings,
+                                 "mappings": cls.mappings})
+
+
+class RunIndex():
+    name = "mlflow-runs"
+    settings = {
+        "number_of_shards": 2,
+        "number_of_replicas": 3
+    }
+    mappings = {
+        "properties": {
+            "name": {"type": "keyword"},
+            "source_type": {"type": "keyword"},
+            "source_name": {"type": "keyword"},
+            "entry_point_name": {"type": "keyword"},
+            "experiment_id": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "status": {"type": "keyword"},
+            "start_time": {"type": "long"},
+            "end_time": {"type": "long"},
+            "source_version": {"type": "keyword"},
+            "artifact_uri": {"type": "text"},
+            "lifecycle_stage": {"type": "keyword"},
+            "artifact_location": {"type": "text"},
+            "latest_metrics": {"type": "flattened"},
+            "params": {"type": "flattened"},
+            "tags": {"type": "flattened"}
+        }
+    }
+
+    @classmethod
+    def init(cls, indices: IndicesClient) -> None:
+        if not (indices.exists(index=[cls.name])):
+            indices.create(index=cls.name,
+                           body={"settings": cls.settings,
+                                 "mappings": cls.mappings})

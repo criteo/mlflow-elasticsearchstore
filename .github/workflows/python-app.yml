@@ -64,5 +64,4 @@ jobs:
       run: |
         sudo sysctl -w vm.max_map_count=262144
         source ./tests/scripts/initialize_database.sh
-        source ./tests/scripts/restore_database.sh
         pytest -m integration

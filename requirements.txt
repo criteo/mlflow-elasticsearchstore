@@ -1,3 +1,2 @@
-elasticsearch_dsl==6.4.0
-fire
+elasticsearch>=7.0.0,<8.0.0
 mlflow
