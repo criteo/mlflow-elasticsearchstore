@@ -234,7 +234,6 @@ class ElasticsearchStore(AbstractStore):
 
     def get_run(self, run_id: str) -> Run:
         run = self._get_run(run_id)
-        print(run)
         return self._hit_to_mlflow_run(run)
 
     def _get_run(self, run_id: str) -> Dict:
