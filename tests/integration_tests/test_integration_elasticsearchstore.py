@@ -476,6 +476,7 @@ def test_list_all_columns_big(init_store):
     assert expected_columns.__dict__ == actual_columns.__dict__
 
 
+@pytest.mark.skip(reason="no way of currently testing this")
 @pytest.mark.skipif(not columns_imported, reason="open source version of mlflow")
 @pytest.mark.usefixtures('init_store')
 def test_list_all_columns_deleted(init_store):
