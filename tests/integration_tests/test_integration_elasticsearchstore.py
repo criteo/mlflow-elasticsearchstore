@@ -691,6 +691,7 @@ def test__search_runs_complete(init_store):
         assert run._info.run_id == expected_runs_ids[i]
 
 
+@pytest.mark.skip(reason="no way of currently testing this")
 @pytest.mark.usefixtures('init_store')
 def test_update_artifacts_location(init_store):
     init_store.update_artifacts_location(

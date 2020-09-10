@@ -366,6 +366,7 @@ def test___get_orderby_clauses(create_store):
     assert actual_query == expected_query
 
 
+@pytest.mark.skip(reason="no way of currently testing this")
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
 @pytest.mark.usefixtures('create_store')
 def test_update_artifacts_location(elastic_run_get_mock, create_store):
