@@ -91,8 +91,9 @@ def test_list_experiments(search_mock, create_store):
         }
     }
     search_mock.assert_called_once_with(index=ExperimentIndex.name, body=body)
-    mock_experiments = [create_store._hit_to_mlflow_experiment(e) for e in response["hits"]["hits"]]
-    assert real_experiments[0].__dict__ == mock_experiments[0].__dict__
+    expected_experiments = [create_store._hit_to_mlflow_experiment(
+        e) for e in response["hits"]["hits"]]
+    assert real_experiments[0].__dict__ == expected_experiments[0].__dict__
 
 
 @mock.patch('elasticsearch.Elasticsearch.get')
