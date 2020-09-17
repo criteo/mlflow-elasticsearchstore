@@ -261,38 +261,38 @@ def test__update_latest_metric_if_necessary(test_elastic_metric, test_elastic_la
 @pytest.mark.parametrize("test_parsed_filter,test_query,test_type",
                          [({'type': 'parameter', 'key': 'param0',
                             'comparator': 'LIKE', 'value': '%va%'},
-                           Q("term", params__key="param0") &
-                           Q('bool', must=[Q("wildcard", params__value="*va*")]),
+                           Q('bool', filter=[Q("term", params__key="param0"),
+                                             Q("wildcard", params__value="*va*")]),
                            "params"),
                           ({'type': 'parameter', 'key': 'param0',
                             'comparator': 'ILIKE', 'value': '%va%'},
-                           Q("term", params__key="param0") &
-                           Q('bool', must=[Q("wildcard", params__value="*va*")]),
+                           Q('bool', filter=[Q("term", params__key="param0"),
+                                             Q("wildcard", params__value="*va*")]),
                            "params"),
                           ({'type': 'parameter', 'key': 'param0',
                             'comparator': '=', 'value': 'va'},
-                           Q("term", params__key="param0") &
-                           Q('bool', must=[Q("term", params__value="va")]),
+                           Q('bool', filter=[Q("term", params__key="param0"),
+                                             Q("term", params__value="va")]),
                            "params"),
                           ({'type': 'metric', 'key': 'metric0', 'comparator': '>', 'value': '1'},
-                           Q("term", latest_metrics__key="metric0") &
-                           Q('bool', must=[Q("range", latest_metrics__value={'gt': "1"})]),
+                           Q('bool', filter=[Q("term", latest_metrics__key="metric0"), Q(
+                               "range", latest_metrics__value={'gt': "1"})]),
                            "latest_metrics"),
                           ({'type': 'metric', 'key': 'metric0', 'comparator': '>=', 'value': '1'},
-                           Q("term", latest_metrics__key="metric0") &
-                           Q('bool', must=[Q("range", latest_metrics__value={'gte': "1"})]),
+                           Q('bool', filter=[Q("term", latest_metrics__key="metric0"), Q(
+                               "range", latest_metrics__value={'gte': "1"})]),
                            "latest_metrics"),
                           ({'type': 'metric', 'key': 'metric0', 'comparator': '<', 'value': '1'},
-                           Q("term", latest_metrics__key="metric0") &
-                           Q('bool', must=[Q("range", latest_metrics__value={'lt': "1"})]),
+                           Q('bool', filter=[Q("term", latest_metrics__key="metric0"), Q(
+                               "range", latest_metrics__value={'lt': "1"})]),
                            "latest_metrics"),
                           ({'type': 'metric', 'key': 'metric0', 'comparator': '<=', 'value': '1'},
-                           Q("term", latest_metrics__key="metric0") &
-                           Q('bool', must=[Q("range", latest_metrics__value={'lte': "1"})]),
+                           Q('bool', filter=[Q("term", latest_metrics__key="metric0"), Q(
+                               "range", latest_metrics__value={'lte': "1"})]),
                            "latest_metrics"),
                           ({'type': 'tag', 'key': 'tag0', 'comparator': '!=', 'value': 'val2'},
-                           Q("term", tags__key="tag0") &
-                           Q('bool', must_not=[Q("term", tags__value="val2")]),
+                           Q('bool', filter=[Q("term", tags__key="tag0")],
+                             must_not=[Q("term", tags__value="val2")]),
                            "tags")])
 @pytest.mark.usefixtures('create_store')
 def test__build_elasticsearch_query(test_parsed_filter, test_query,
@@ -305,7 +305,7 @@ def test__build_elasticsearch_query(test_parsed_filter, test_query,
 @pytest.mark.usefixtures('create_store')
 def test__get_orderby_clauses(create_store):
     order_by_list = ['metrics.`metric0` ASC', 'params.`param0` DESC', 'attributes.start_time ASC']
-    actual_query = create_store._get_orderby_clauses(order_by_list=order_by_list, s=Search())
+    actual_sort_clauses = create_store._get_orderby_clauses(order_by_list=order_by_list)
     sort_clauses = [{'latest_metrics.value': {'order': "asc",
                                               "nested": {"path": "latest_metrics",
                                                          "filter": {"term": {'latest_metrics.key':
@@ -316,8 +316,7 @@ def test__get_orderby_clauses(create_store):
                     {"start_time": {'order': "asc"}},
                     {"start_time": {'order': "desc"}},
                     {"_id": {'order': "asc"}}]
-    expected_query = Search().sort(*sort_clauses)
-    assert actual_query == expected_query
+    assert actual_sort_clauses == sort_clauses
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
