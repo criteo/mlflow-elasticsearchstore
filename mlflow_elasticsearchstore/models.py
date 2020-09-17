@@ -37,12 +37,20 @@ class ElasticExperiment(Document):
             tags=[t.to_mlflow_entity() for t in self.tags])
 
 
-class ElasticMetric(InnerDoc):
+class ElasticMetric(Document):
     key = Keyword()
     value = Double()
     timestamp = Long()
     step = Integer()
     is_nan = Boolean()
+    run_id = Keyword()
+
+    class Index:
+        name = 'mlflow-metrics'
+        settings = {
+            "number_of_shards": 2,
+            "number_of_replicas": 2
+        }
 
     def to_mlflow_entity(self) -> Metric:
         return Metric(
@@ -99,7 +107,6 @@ class ElasticRun(Document):
     source_version = Keyword()
     lifecycle_stage = Keyword()
     artifact_uri = Text()
-    metrics = Nested(ElasticMetric)
     latest_metrics = Nested(ElasticLatestMetric)
     params = Nested(ElasticParam)
     tags = Nested(ElasticTag)
@@ -124,7 +131,7 @@ class ElasticRun(Document):
             artifact_uri=self.artifact_uri)
 
         run_data = RunData(
-            metrics=[m.to_mlflow_entity() for m in self.metrics],
+            metrics=[m.to_mlflow_entity() for m in self.latest_metrics],
             params=[p.to_mlflow_entity() for p in self.params],
             tags=[t.to_mlflow_entity() for t in self.tags])
         return Run(run_info=run_info, run_data=run_data)

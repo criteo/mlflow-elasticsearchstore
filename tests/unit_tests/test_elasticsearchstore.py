@@ -46,7 +46,8 @@ deleted_run = ElasticRun(meta={'id': "1"},
                          params=[ElasticParam(key="param1", value="val1")],
                          tags=[ElasticTag(key="tag1", value="val1")])
 
-elastic_metric = ElasticMetric(key="metric2", value=2, timestamp=1, step=1, is_nan=False)
+elastic_metric = ElasticMetric(key="metric2", value=2, timestamp=1,
+                               step=1, is_nan=False, run_id="1")
 
 metric = Metric(key="metric2", value=2, timestamp=1, step=1)
 
@@ -192,14 +193,11 @@ def test_get_run(elastic_run_get_mock, create_store):
 @pytest.mark.usefixtures('create_store')
 def test_log_metric(_update_latest_metric_if_necessary_mock, elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
-    run.metrics = mock.MagicMock()
-    run.metrics.append = mock.MagicMock()
-    run.save = mock.MagicMock()
+    run.update = mock.MagicMock()
     create_store.log_metric("1", metric)
     elastic_run_get_mock.assert_called_once_with(id="1")
     _update_latest_metric_if_necessary_mock.assert_called_once_with(elastic_metric, run)
-    run.metrics.append.assert_called_once_with(elastic_metric)
-    run.save.assert_called_once_with()
+    run.update.assert_called_once_with(latest_metrics=run.latest_metrics)
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
@@ -208,11 +206,11 @@ def test_log_param(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     run.params = mock.MagicMock()
     run.params.append = mock.MagicMock()
-    run.save = mock.MagicMock()
+    run.update = mock.MagicMock()
     create_store.log_param("1", param)
     elastic_run_get_mock.assert_called_once_with(id="1")
     run.params.append.assert_called_once_with(elastic_param)
-    run.save.assert_called_once_with()
+    run.update.assert_called_once_with(params=run.params)
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticExperiment.get')
@@ -221,11 +219,11 @@ def test_set_experiment_tag(elastic_experiment_get_mock, create_store):
     elastic_experiment_get_mock.return_value = experiment
     experiment.tags = mock.MagicMock()
     experiment.tags.append = mock.MagicMock()
-    experiment.save = mock.MagicMock()
+    experiment.update = mock.MagicMock()
     create_store.set_experiment_tag("1", experiment_tag)
     elastic_experiment_get_mock.assert_called_once_with(id="1")
     experiment.tags.append.assert_called_once_with(elastic_experiment_tag)
-    experiment.save.assert_called_once_with()
+    experiment.update.assert_called_once_with(tags=experiment.tags)
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
@@ -234,11 +232,11 @@ def test_set_tag(elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     run.tags = mock.MagicMock()
     run.tags.append = mock.MagicMock()
-    run.save = mock.MagicMock()
+    run.update = mock.MagicMock()
     create_store.set_tag("1", tag)
     elastic_run_get_mock.assert_called_once_with(id="1")
     run.tags.append.assert_called_once_with(elastic_tag)
-    run.save.assert_called_once_with()
+    run.update.assert_called_once_with(tags=run.tags)
 
 
 @pytest.mark.parametrize("test_elastic_metric,test_elastic_latest_metrics",
