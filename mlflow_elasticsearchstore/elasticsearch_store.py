@@ -333,7 +333,7 @@ class ElasticsearchStore(AbstractStore):
                        params=columns['params'],
                        tags=columns['tags'])
 
-    def build_columns_to_whitelist_key_dict(self, columns_to_whitelist: List[str]) -> dict:
+    def _build_columns_to_whitelist_key_dict(self, columns_to_whitelist: List[str]) -> dict:
         if columns_to_whitelist is None:
             return None
         columns_to_whitelist_key_dict: dict = {"metrics": [], "params": [], "tags": []}
@@ -429,7 +429,7 @@ class ElasticsearchStore(AbstractStore):
         s = Search(index="mlflow-runs").query('bool', filter=filter_queries)
         s = s.sort(*sort_clauses)
         response = s.source(excludes=["metrics.*"])[offset:offset + max_results].execute()
-        columns_to_whitelist_key_dict = self.build_columns_to_whitelist_key_dict(
+        columns_to_whitelist_key_dict = self._build_columns_to_whitelist_key_dict(
             columns_to_whitelist)
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict)
                 for hit in response["hits"]["hits"]]

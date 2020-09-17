@@ -258,6 +258,16 @@ def test__update_latest_metric_if_necessary(test_elastic_metric, test_elastic_la
     assert run.latest_metrics == test_elastic_latest_metrics
 
 
+@pytest.mark.usefixtures('create_store')
+def test__build_columns_to_whitelist_key_dict(create_store):
+    test_columns_to_whitelist = ['metrics.metric0', 'metrics.metric1', 'tags.tag3', 'params.param2']
+    actual_col_to_whitelist_dict = create_store._build_columns_to_whitelist_key_dict(
+        test_columns_to_whitelist)
+    col_to_whitelist_dict = {"metrics": ["metric0", "metric1"],
+                             "params": ['param2'], "tags": ["tag3"]}
+    assert actual_col_to_whitelist_dict == col_to_whitelist_dict
+
+
 @pytest.mark.parametrize("test_parsed_filter,test_query,test_type",
                          [({'type': 'parameter', 'key': 'param0',
                             'comparator': 'LIKE', 'value': '%va%'},
