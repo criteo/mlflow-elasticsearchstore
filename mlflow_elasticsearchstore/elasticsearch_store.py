@@ -441,7 +441,7 @@ class ElasticsearchStore(AbstractStore):
         self._check_run_is_active(run)
         try:
             for metric in metrics:
-                self._log_metric(run, metric)
+                self._log_metric(run, run_id, metric)
             for param in params:
                 self._log_param(run, param)
             for tag in tags:
