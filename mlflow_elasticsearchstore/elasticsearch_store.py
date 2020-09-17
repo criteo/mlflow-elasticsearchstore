@@ -336,16 +336,16 @@ class ElasticsearchStore(AbstractStore):
     def _build_columns_to_whitelist_key_dict(self, columns_to_whitelist: List[str]) -> dict:
         if columns_to_whitelist is None:
             return None
-        columns_to_whitelist_key_dict: dict = {"metrics": [], "params": [], "tags": []}
+        columns_to_whitelist_key_dict: dict = {"metrics": set(), "params": set(), "tags": set()}
         for col in columns_to_whitelist:
             word = col.split(".")
             key = ".".join(word[1:])
             if word[0] == "metrics":
-                columns_to_whitelist_key_dict["metrics"].append(key)
+                columns_to_whitelist_key_dict["metrics"].add(key)
             elif word[0] == "params":
-                columns_to_whitelist_key_dict["params"].append(key)
+                columns_to_whitelist_key_dict["params"].add(key)
             elif word[0] == "tags":
-                columns_to_whitelist_key_dict["tags"].append(key)
+                columns_to_whitelist_key_dict["tags"].add(key)
         return columns_to_whitelist_key_dict
 
     def _build_elasticsearch_query(self, parsed_filters: List[dict]) -> List[Q]:

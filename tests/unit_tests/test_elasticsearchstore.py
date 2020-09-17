@@ -263,8 +263,8 @@ def test__build_columns_to_whitelist_key_dict(create_store):
     test_columns_to_whitelist = ['metrics.metric0', 'metrics.metric1', 'tags.tag3', 'params.param2']
     actual_col_to_whitelist_dict = create_store._build_columns_to_whitelist_key_dict(
         test_columns_to_whitelist)
-    col_to_whitelist_dict = {"metrics": ["metric0", "metric1"],
-                             "params": ['param2'], "tags": ["tag3"]}
+    col_to_whitelist_dict = {"metrics": {"metric0", "metric1"},
+                             "params": {'param2'}, "tags": {"tag3"}}
     assert actual_col_to_whitelist_dict == col_to_whitelist_dict
 
 
