@@ -421,9 +421,7 @@ class ElasticsearchStore(AbstractStore):
         filter_queries += self._build_elasticsearch_query(parsed_filters)
         sort_clauses = self._get_orderby_clauses(order_by)
         s = Search(index="mlflow-runs").query('bool', filter=filter_queries)
-        s = s.sort(*sort_clauses)
-        s = self._get_orderby_clauses(order_by, s)
-        response = s[offset: offset + max_results].execute()
+        response = s.sort(*sort_clauses)[offset: offset + max_results].execute()
         columns_to_whitelist_key_dict = self.build_columns_to_whitelist_key_dict(
             columns_to_whitelist)
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict) for hit in response]
