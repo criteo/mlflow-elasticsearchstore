@@ -188,15 +188,18 @@ def test_get_run(elastic_run_get_mock, create_store):
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
+@mock.patch('mlflow_elasticsearchstore.models.ElasticMetric.save')
 @mock.patch('mlflow_elasticsearchstore.elasticsearch_store.ElasticsearchStore.'
             '_update_latest_metric_if_necessary')
 @pytest.mark.usefixtures('create_store')
-def test_log_metric(_update_latest_metric_if_necessary_mock, elastic_run_get_mock, create_store):
+def test_log_metric(_update_latest_metric_if_necessary_mock,
+                    elastic_metric_save_mock, elastic_run_get_mock, create_store):
     elastic_run_get_mock.return_value = run
     run.update = mock.MagicMock()
     create_store.log_metric("1", metric)
     elastic_run_get_mock.assert_called_once_with(id="1")
     _update_latest_metric_if_necessary_mock.assert_called_once_with(elastic_metric, run)
+    elastic_metric_save_mock.assert_called_once_with()
     run.update.assert_called_once_with(latest_metrics=run.latest_metrics)
 
 
