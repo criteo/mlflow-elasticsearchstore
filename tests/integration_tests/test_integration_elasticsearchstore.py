@@ -3,6 +3,7 @@ import sys
 import math
 import time
 from elasticsearch.exceptions import NotFoundError
+from elasticsearch_dsl import Search
 
 from mlflow.entities import (Experiment, ExperimentTag, Run, RunInfo, RunData,
                              Metric, Param, RunTag, ViewType, LifecycleStage, RunStatus)
@@ -155,11 +156,7 @@ def test_get_run(init_store):
                                 "/artifacts",
                                 run_id="7b2e71956f3d4c08b042624a8d83700d")
 
-    expected_metrics = [Metric(key="metric0", value=15.0, timestamp=1597324762700, step=0),
-                        Metric(key="metric0", value=7.0, timestamp=1597324762742, step=1),
-                        Metric(key="metric0", value=20.0, timestamp=1597324762778, step=2),
-                        Metric(key="metric1", value=20.0, timestamp=1597324762815, step=0),
-                        Metric(key="metric1", value=0.0, timestamp=1597324762847, step=1),
+    expected_metrics = [Metric(key="metric0", value=20.0, timestamp=1597324762778, step=2),
                         Metric(key="metric1", value=7.0, timestamp=1597324762890, step=2)]
 
     expected_params = [Param(key="param0", value="val2"),
@@ -264,8 +261,14 @@ def test_log_metric(init_store):
     new_metric = Metric(key="new_metric", value=7.0, timestamp=10, step=0)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    assert ElasticMetric(key="new_metric", value=7.0, timestamp=10,
-                         step=0, is_nan=False) in actual_run.metrics
+    time.sleep(1)
+    actual_metrics = Search(index="mlflow-metrics") \
+        .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
+        .filter("term", key="new_metric").execute()
+    expected_metric = {"key": "new_metric", 'value': 7.0, 'timestamp': 10,
+                       'step': 0, 'is_nan': False, 'run_id': '7b2e71956f3d4c08b042624a8d83700d'}
+    assert expected_metric == actual_metrics["hits"]["hits"][0]["_source"]
+    assert len(actual_metrics["hits"]["hits"]) == 1
     assert ElasticLatestMetric(key="new_metric", value=7.0, timestamp=10,
                                step=0, is_nan=False) in actual_run.latest_metrics
 
@@ -275,8 +278,14 @@ def test_log_metric_with_nan_value(init_store):
     new_metric = Metric(key="nan_metric", value=math.nan, timestamp=10, step=0)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    assert ElasticMetric(key="nan_metric", value=0, timestamp=10,
-                         step=0, is_nan=True) in actual_run.metrics
+    time.sleep(1)
+    actual_metrics = Search(index="mlflow-metrics") \
+        .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
+        .filter("term", key="nan_metric").execute()
+    expected_metric = {"key": "nan_metric", 'value': 0, 'timestamp': 10,
+                       'step': 0, 'is_nan': True, 'run_id': '7b2e71956f3d4c08b042624a8d83700d'}
+    assert expected_metric == actual_metrics["hits"]["hits"][0]["_source"]
+    assert len(actual_metrics["hits"]["hits"]) == 1
     assert ElasticLatestMetric(key="nan_metric", value=0, timestamp=10,
                                step=0, is_nan=True) in actual_run.latest_metrics
 
@@ -286,21 +295,33 @@ def test_log_metric_with_inf_value(init_store):
     new_metric = Metric(key="inf_metric", value=1.7976931348623157e309, timestamp=10, step=0)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    assert ElasticMetric(key="inf_metric", value=1.7976931348623157e308,
-                         timestamp=10, step=0, is_nan=False) in actual_run.metrics
+    time.sleep(1)
+    actual_metrics = Search(index="mlflow-metrics") \
+        .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
+        .filter("term", key="inf_metric").execute()
+    expected_metric = {"key": "inf_metric", 'value': 1.7976931348623157e308, 'timestamp': 10,
+                       'step': 0, 'is_nan': False, 'run_id': '7b2e71956f3d4c08b042624a8d83700d'}
+    assert expected_metric == actual_metrics["hits"]["hits"][0]["_source"]
+    assert len(actual_metrics["hits"]["hits"]) == 1
     assert ElasticLatestMetric(key="inf_metric", value=1.7976931348623157e308,
                                timestamp=10, step=0, is_nan=False) in actual_run.latest_metrics
 
 
-@pytest.mark.usefixtures('init_store')
+@ pytest.mark.usefixtures('init_store')
 def test_log_metric_with_negative_inf_value(init_store):
     new_metric = Metric(key="negative_inf_metric",
                         value=-1.7976931348623157e309, timestamp=10, step=0)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    assert ElasticMetric(key="negative_inf_metric",
-                         value=-1.7976931348623157e308, timestamp=10,
-                         step=0, is_nan=False) in actual_run.metrics
+    time.sleep(1)
+    actual_metrics = Search(index="mlflow-metrics") \
+        .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
+        .filter("term", key="negative_inf_metric").execute()
+    expected_metric = {"key": "negative_inf_metric", 'value': -1.7976931348623157e308,
+                       'timestamp': 10, 'step': 0, 'is_nan': False,
+                       'run_id': '7b2e71956f3d4c08b042624a8d83700d'}
+    assert expected_metric == actual_metrics["hits"]["hits"][0]["_source"]
+    assert len(actual_metrics["hits"]["hits"]) == 1
     assert ElasticLatestMetric(key="negative_inf_metric",
                                value=-1.7976931348623157e308, timestamp=10,
                                step=0, is_nan=False) in actual_run.latest_metrics
@@ -311,8 +332,11 @@ def test_log_metric_with_existing_key(init_store):
     new_metric = Metric(key="new_metric", value=-10, timestamp=20, step=1)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    assert ElasticMetric(key="new_metric", value=-10,
-                         timestamp=20, step=1, is_nan=False) in actual_run.metrics
+    time.sleep(1)
+    actual_metrics = Search(index="mlflow-metrics") \
+        .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
+        .filter("term", key="new_metric").execute()
+    assert len(actual_metrics["hits"]["hits"]) == 2
     assert ElasticLatestMetric(key="new_metric", value=-10,
                                timestamp=20, step=1, is_nan=False) in actual_run.latest_metrics
 
@@ -351,12 +375,6 @@ def test_log_batch(init_store):
                   Param(key="param_batch2", value="batch2")]
     new_tags = [RunTag(key="tag_batch1", value="batch1"),
                 RunTag(key="tag_batch2", value="batch2")]
-    expected_metrics = [ElasticMetric(key="metric_batch1", value=1,
-                                      timestamp=1, step=1, is_nan=False),
-                        ElasticMetric(key="metric_batch2", value=2,
-                                      timestamp=1, step=1, is_nan=False),
-                        ElasticMetric(key="metric_batch1", value=5,
-                                      timestamp=2, step=2, is_nan=False)]
     expected_latest_metrics = [ElasticLatestMetric(key="metric_batch1", value=5,
                                                    timestamp=2, step=2, is_nan=False),
                                ElasticLatestMetric(key="metric_batch2", value=2,
@@ -367,8 +385,15 @@ def test_log_batch(init_store):
                      ElasticTag(key="tag_batch2", value="batch2")]
     init_store.log_batch("7b2e71956f3d4c08b042624a8d83700d", new_metrics, new_params, new_tags)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    for metric in expected_metrics:
-        assert metric in actual_run.metrics
+    time.sleep(1)
+    actual_metrics_batch1 = Search(index="mlflow-metrics") \
+        .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
+        .filter("term", key="metric_batch1").execute()
+    actual_metrics_batch2 = Search(index="mlflow-metrics") \
+        .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
+        .filter("term", key="metric_batch2").execute()
+    assert len(actual_metrics_batch1) == 2
+    assert len(actual_metrics_batch2) == 1
     for latest_metric in expected_latest_metrics:
         assert latest_metric in actual_run.latest_metrics
     for param in expected_params:
@@ -379,13 +404,16 @@ def test_log_batch(init_store):
 
 @pytest.mark.usefixtures('init_store')
 def test_get_metric_history(init_store):
-    expected_metric_history = [Metric(key="metric0", value=15.0, timestamp=1597324762700, step=0),
-                               Metric(key="metric0", value=7.0, timestamp=1597324762742, step=1),
-                               Metric(key="metric0", value=20.0, timestamp=1597324762778, step=2)]
+    expected_metric_history = [Metric(key="metric0", value=15.0,
+                                      timestamp=1597324762700, step=0).__dict__,
+                               Metric(key="metric0", value=7.0,
+                                      timestamp=1597324762742, step=1).__dict__,
+                               Metric(key="metric0", value=20.0,
+                                      timestamp=1597324762778, step=2).__dict__]
     actual_metric_history = init_store.get_metric_history(
         "7b2e71956f3d4c08b042624a8d83700d", "metric0")
-    for i, metric in enumerate(actual_metric_history):
-        assert metric.__dict__ == expected_metric_history[i].__dict__
+    for metric in actual_metric_history:
+        assert metric.__dict__ in expected_metric_history
 
 
 @pytest.mark.usefixtures('init_store')
