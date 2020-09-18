@@ -423,6 +423,25 @@ def test_get_metric_history(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
+def test_get_metric_history_big(init_store):
+    expected_history = []
+    for i in range(11):
+        new_metrics = []
+        for j in range(1000):
+            new_metric = Metric("big_metric", (i+1)*j, (i+1)*j, (i+1)*j)
+            new_metrics.append(new_metric)
+            expected_history.append(new_metric.__dict__)
+        init_store.log_batch("7b2e71956f3d4c08b042624a8d83700d",
+                             metrics=new_metrics, params=[], tags=[])
+    time.sleep(1)
+    actual_history = init_store.get_metric_history(
+        "7b2e71956f3d4c08b042624a8d83700d", "big_metric")
+    assert len(actual_history) == 11000
+    for metric in actual_history:
+        assert metric.__dict__ in expected_history
+
+
+@pytest.mark.usefixtures('init_store')
 def test_get_metric_history_with_fake_key(init_store):
     expected_metric_history = []
     actual_metric_history = init_store.get_metric_history(
@@ -471,8 +490,8 @@ def test_list_all_columns_big(init_store):
     new_tags_key.sort()
     # Wait for Elasticsearch refresh for search
     time.sleep(2)
-    expected_columns = Columns(metrics=["inf_metric", "metric0", "metric1", "metric_batch1",
-                                        "metric_batch2", "nan_metric",
+    expected_columns = Columns(metrics=["big_metric", "inf_metric", "metric0", "metric1",
+                                        "metric_batch1", "metric_batch2", "nan_metric",
                                         "negative_inf_metric", "new_metric"],
                                params=["new_param", "param0", "param1",
                                        "param2", "param3", "param_batch1", "param_batch2"],
