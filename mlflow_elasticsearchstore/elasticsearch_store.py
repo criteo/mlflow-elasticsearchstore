@@ -61,20 +61,19 @@ class ElasticsearchStore(AbstractStore):
 
     def _hit_to_mlflow_run(self, hit: Any, columns_to_whitelist_key_dict: dict = None) -> Run:
         return Run(run_info=self._hit_to_mlflow_run_info(hit),
-                   run_data=self._hit_to_mlflow_run_data(hit._source,
-                                                         columns_to_whitelist_key_dict))
+                   run_data=self._hit_to_mlflow_run_data(hit, columns_to_whitelist_key_dict))
 
     def _hit_to_mlflow_run_info(self, hit: Any) -> RunInfo:
-        return RunInfo(run_uuid=hit._id, run_id=hit._id,
-                       experiment_id=str(hit._source.experiment_id),
-                       user_id=hit._source.user_id,
-                       status=hit._source.status,
-                       start_time=hit._source.start_time,
-                       end_time=hit._source.end_time if hasattr(hit._source, 'end_time') else None,
-                       lifecycle_stage=hit._source.lifecycle_stage if
-                       hasattr(hit["_source"], 'lifecycle_stage') else None,
-                       artifact_uri=hit._source.artifact_uri
-                       if hasattr(hit["_source"], 'artifact_uri') else None)
+        return RunInfo(run_uuid=hit.meta.id, run_id=hit.meta.id,
+                       experiment_id=str(hit.experiment_id),
+                       user_id=hit.user_id,
+                       status=hit.status,
+                       start_time=hit.start_time,
+                       end_time=hit.end_time if hasattr(hit, 'end_time') else None,
+                       lifecycle_stage=hit.lifecycle_stage if
+                       hasattr(hit, 'lifecycle_stage') else None,
+                       artifact_uri=hit.artifact_uri
+                       if hasattr(hit, 'artifact_uri') else None)
 
     def _hit_to_mlflow_run_data(self, hit: Any, columns_to_whitelist_key_dict: dict) -> RunData:
         metrics = [self._hit_to_mlflow_metric(m) for m in
@@ -340,12 +339,7 @@ class ElasticsearchStore(AbstractStore):
         for col in columns_to_whitelist:
             word = col.split(".")
             key = ".".join(word[1:])
-            if word[0] == "metrics":
-                columns_to_whitelist_key_dict["metrics"].add(key)
-            elif word[0] == "params":
-                columns_to_whitelist_key_dict["params"].add(key)
-            elif word[0] == "tags":
-                columns_to_whitelist_key_dict["tags"].add(key)
+            columns_to_whitelist_key_dict[word[0]].add(key)
         return columns_to_whitelist_key_dict
 
     def _build_elasticsearch_query(self, parsed_filters: List[dict]) -> List[Q]:
@@ -432,7 +426,7 @@ class ElasticsearchStore(AbstractStore):
         columns_to_whitelist_key_dict = self._build_columns_to_whitelist_key_dict(
             columns_to_whitelist)
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict)
-                for hit in response["hits"]["hits"]]
+                for hit in response]
         next_page_token = compute_next_token(len(runs))
         return runs, next_page_token
 
