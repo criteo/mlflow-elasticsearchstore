@@ -6,7 +6,7 @@ from elasticsearch_dsl import Search, connections, Q
 from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
-from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD, SEARCH_MAX_RESULTS_DEFAULT
+from mlflow.store.tracking import SEARCH_MAX_RESULTS_DEFAULT
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE, INTERNAL_ERROR
 from mlflow.entities import (Experiment, RunTag, Metric, Param, Run, RunInfo, RunData,
                              RunStatus, ExperimentTag, LifecycleStage, ViewType)
@@ -413,10 +413,10 @@ class ElasticsearchStore(AbstractStore):
                 final_offset = offset + max_results
                 next_token = SearchUtils.create_page_token(final_offset)
             return next_token
-        if max_results > SEARCH_MAX_RESULTS_THRESHOLD:
+        if max_results > 10000:
             raise MlflowException("Invalid value for request parameter max_results. It must be at "
                                   "most {}, but got value {}"
-                                  .format(SEARCH_MAX_RESULTS_THRESHOLD, max_results),
+                                  .format(10000, max_results),
                                   INVALID_PARAMETER_VALUE)
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         parsed_filters = SearchUtils.parse_search_filter(filter_string)

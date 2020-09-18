@@ -637,27 +637,13 @@ def test__search_runs_max_results(expected_runs_ids, test_max_results, init_stor
         assert run._info.run_id == expected_runs_ids[i]
 
 
-@pytest.mark.xfail
-@pytest.mark.usefixtures('init_store')
-def test__search_runs_max_results_elastic_limit(init_store):
-    expected_runs_ids = ["4baa8e505cdb49109b6819a497f1a58a", "1e5200ae248b476cb0e60286e3f061a4",
-                         "d57a45f3763e4827b7c03f03d60dbbe1"]
-    actual_runs = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
-                                          filter_string='',
-                                          max_results=10001,
-                                          run_view_type=ViewType.ACTIVE_ONLY)
-    assert len(actual_runs) == len(expected_runs_ids)
-    for i, run in enumerate(actual_runs):
-        assert run._info.run_id == expected_runs_ids[i]
-
-
 @pytest.mark.usefixtures('init_store')
 def test__search_runs_max_results_threshold(init_store):
     with pytest.raises(MlflowException) as excinfo:
         actual_runs, next_page_token = init_store._search_runs(
             experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
             filter_string='',
-            max_results=50001,
+            max_results=10001,
             run_view_type=ViewType.ACTIVE_ONLY)
         assert "Invalid value for request parameter max_results" in str(excinfo.value)
 
