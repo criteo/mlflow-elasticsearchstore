@@ -4,6 +4,7 @@ from operator import attrgetter
 from typing import List, Tuple, Any, Dict
 from elasticsearch_dsl import Search, connections, Q
 from six.moves import urllib
+import ast
 
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD, SEARCH_MAX_RESULTS_DEFAULT
@@ -92,7 +93,9 @@ class ElasticsearchStore(AbstractStore):
         return RunData(metrics=metrics, params=params, tags=tags)
 
     def _hit_to_mlflow_metric(self, hit: Any) -> Metric:
-        return Metric(key=hit.key, value=hit.value if not hit.is_nan else float("nan"),
+        return Metric(key=hit.key,
+                      value=hit.value if not (hasattr(hit, 'is_nan')
+                                              and hit.is_nan) else float("nan"),
                       timestamp=hit.timestamp, step=hit.step)
 
     def _hit_to_mlflow_param(self, hit: Any) -> Param:
@@ -378,13 +381,16 @@ class ElasticsearchStore(AbstractStore):
 
     def _get_orderby_clauses(self, order_by_list: List[str]) -> List[dict]:
         type_dict = {"metric": "latest_metrics", "parameter": "params", "tag": "tags"}
+        type_dict_token = {"metric": "metrics", "parameter": "params", "tag": "tags"}
         sort_clauses = []
+        sort_keys = []
         if order_by_list:
             for order_by_clause in order_by_list:
                 (key_type, key, ascending) = SearchUtils. \
                     parse_order_by_for_search_runs(order_by_clause)
                 sort_order = "asc" if ascending else "desc"
                 if not SearchUtils.is_attribute(key_type, "="):
+                    sort_keys.append([f"data.{type_dict_token[key_type]}", key])
                     key_type = type_dict[key_type]
                     sort_clauses.append({f'{key_type}.value':
                                          {'order': sort_order, "nested":
@@ -392,21 +398,26 @@ class ElasticsearchStore(AbstractStore):
                                            {"term": {f'{key_type}.key': key}}}}})
                 else:
                     sort_clauses.append({key: {'order': sort_order}})
+                    sort_keys.append([f"info.{key}"])
         sort_clauses.append({"start_time": {'order': "desc"}})
+        sort_keys.append(["info.start_time"])
         sort_clauses.append({"_id": {'order': "asc"}})
-        return sort_clauses
+        sort_keys.append(["info.run_id"])
+        return sort_clauses, sort_keys
+
+    def _build_next_token_page(self, sort_keys: List, last_run: Run) -> List:
+        next_page_token = []
+        for i, keys in enumerate(sort_keys):
+            next_page_token.append(attrgetter(keys[0])(last_run))
+            if len(keys) == 2:
+                next_page_token[i] = next_page_token[i][keys[1]]
+        return next_page_token
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str,
                      run_view_type: str, max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
                      order_by: List[str] = None, page_token: str = None,
                      columns_to_whitelist: List[str] = None) -> Tuple[List[Run], str]:
 
-        def compute_next_token(current_size: int) -> str:
-            next_token = None
-            if max_results == current_size:
-                final_offset = offset + max_results
-                next_token = SearchUtils.create_page_token(final_offset)
-            return next_token
         if max_results > SEARCH_MAX_RESULTS_THRESHOLD:
             raise MlflowException("Invalid value for request parameter max_results. It must be at "
                                   "most {}, but got value {}"
@@ -414,18 +425,23 @@ class ElasticsearchStore(AbstractStore):
                                   INVALID_PARAMETER_VALUE)
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         parsed_filters = SearchUtils.parse_search_filter(filter_string)
-        offset = SearchUtils.parse_start_offset_from_page_token(page_token)
         filter_queries = [Q("match", experiment_id=experiment_ids[0]),
                           Q("terms", lifecycle_stage=stages)]
         filter_queries += self._build_elasticsearch_query(parsed_filters)
-        sort_clauses = self._get_orderby_clauses(order_by)
+        sort_clauses, sort_keys = self._get_orderby_clauses(order_by)
         s = Search(index="mlflow-runs").query('bool', filter=filter_queries)
-        response = s.sort(*sort_clauses)[offset: offset + max_results].execute()
+        s = s.sort(*sort_clauses)
+        if page_token != "" and page_token is not None:
+            s = s.extra(search_after=ast.literal_eval(page_token))
+        response = s.params(size=max_results).execute()
         columns_to_whitelist_key_dict = self._build_columns_to_whitelist_key_dict(
             columns_to_whitelist)
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict) for hit in response]
-        next_page_token = compute_next_token(len(runs))
-        return runs, next_page_token
+        if len(runs) == max_results:
+            next_page_token = self._build_next_token_page(sort_keys, runs[-1])
+        else:
+            next_page_token = ""
+        return runs, str(next_page_token)
 
     def update_artifacts_location(self, run_id: str, new_artifacts_location: str) -> None:
         run = self._get_run(run_id=run_id)

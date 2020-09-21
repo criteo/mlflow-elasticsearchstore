@@ -316,7 +316,8 @@ def test__build_elasticsearch_query(test_parsed_filter, test_query,
 @pytest.mark.usefixtures('create_store')
 def test__get_orderby_clauses(create_store):
     order_by_list = ['metrics.`metric0` ASC', 'params.`param0` DESC', 'attributes.start_time ASC']
-    actual_sort_clauses = create_store._get_orderby_clauses(order_by_list=order_by_list)
+    actual_sort_clauses, acual_sort_keys = create_store._get_orderby_clauses(
+        order_by_list=order_by_list)
     sort_clauses = [{'latest_metrics.value': {'order': "asc",
                                               "nested": {"path": "latest_metrics",
                                                          "filter": {"term": {'latest_metrics.key':
@@ -327,7 +328,10 @@ def test__get_orderby_clauses(create_store):
                     {"start_time": {'order': "asc"}},
                     {"start_time": {'order': "desc"}},
                     {"_id": {'order': "asc"}}]
+    sort_keys = [["data.metrics", "metric0"], ["data.params", "param0"],
+                 ["info.start_time"], ["info.start_time"], ["info.run_id"]]
     assert actual_sort_clauses == sort_clauses
+    assert acual_sort_keys == sort_keys
 
 
 @mock.patch('mlflow_elasticsearchstore.models.ElasticRun.get')
