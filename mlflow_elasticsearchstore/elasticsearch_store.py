@@ -379,7 +379,7 @@ class ElasticsearchStore(AbstractStore):
             search_query.append(Q('nested', path=type_dict[key_type], query=query))
         return search_query
 
-    def _get_orderby_clauses(self, order_by_list: List[str]) -> List[dict]:
+    def _get_orderby_clauses(self, order_by_list: List[str]) -> Tuple[List[dict], List[List[str]]]:
         type_dict = {"metric": "latest_metrics", "parameter": "params", "tag": "tags"}
         type_dict_token = {"metric": "metrics", "parameter": "params", "tag": "tags"}
         sort_clauses = []
@@ -405,8 +405,8 @@ class ElasticsearchStore(AbstractStore):
         sort_keys.append(["info.run_id"])
         return sort_clauses, sort_keys
 
-    def _build_next_token_page(self, sort_keys: List, last_run: Run) -> List:
-        next_page_token = []
+    def _build_next_token_page(self, sort_keys: List[List[str]], last_run: Run) -> List[Any]:
+        next_page_token: List[Any] = []
         for i, keys in enumerate(sort_keys):
             next_page_token.append(attrgetter(keys[0])(last_run))
             if len(keys) == 2:
@@ -440,7 +440,7 @@ class ElasticsearchStore(AbstractStore):
         if len(runs) == max_results:
             next_page_token = self._build_next_token_page(sort_keys, runs[-1])
         else:
-            next_page_token = ""
+            next_page_token = []
         return runs, str(next_page_token)
 
     def update_artifacts_location(self, run_id: str, new_artifacts_location: str) -> None:
