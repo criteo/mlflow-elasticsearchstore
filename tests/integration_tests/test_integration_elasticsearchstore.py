@@ -261,7 +261,8 @@ def test_log_metric(init_store):
     new_metric = Metric(key="new_metric", value=7.0, timestamp=10, step=0)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    time.sleep(1)
+    # Wait for Elasticsearch refresh for search
+    time.sleep(2)
     actual_metrics = Search(index="mlflow-metrics") \
         .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
         .filter("term", key="new_metric").execute()
@@ -278,7 +279,8 @@ def test_log_metric_with_nan_value(init_store):
     new_metric = Metric(key="nan_metric", value=math.nan, timestamp=10, step=0)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    time.sleep(1)
+    # Wait for Elasticsearch refresh for search
+    time.sleep(2)
     actual_metrics = Search(index="mlflow-metrics") \
         .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
         .filter("term", key="nan_metric").execute()
@@ -295,7 +297,8 @@ def test_log_metric_with_inf_value(init_store):
     new_metric = Metric(key="inf_metric", value=1.7976931348623157e309, timestamp=10, step=0)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    time.sleep(1)
+    # Wait for Elasticsearch refresh for search
+    time.sleep(2)
     actual_metrics = Search(index="mlflow-metrics") \
         .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
         .filter("term", key="inf_metric").execute()
@@ -313,7 +316,8 @@ def test_log_metric_with_negative_inf_value(init_store):
                         value=-1.7976931348623157e309, timestamp=10, step=0)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    time.sleep(1)
+    # Wait for Elasticsearch refresh for search
+    time.sleep(2)
     actual_metrics = Search(index="mlflow-metrics") \
         .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
         .filter("term", key="negative_inf_metric").execute()
@@ -332,7 +336,8 @@ def test_log_metric_with_existing_key(init_store):
     new_metric = Metric(key="new_metric", value=-10, timestamp=20, step=1)
     init_store.log_metric("7b2e71956f3d4c08b042624a8d83700d", new_metric)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    time.sleep(1)
+    # Wait for Elasticsearch refresh for search
+    time.sleep(2)
     actual_metrics = Search(index="mlflow-metrics") \
         .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
         .filter("term", key="new_metric").execute()
@@ -385,7 +390,8 @@ def test_log_batch(init_store):
                      ElasticTag(key="tag_batch2", value="batch2")]
     init_store.log_batch("7b2e71956f3d4c08b042624a8d83700d", new_metrics, new_params, new_tags)
     actual_run = init_store._get_run("7b2e71956f3d4c08b042624a8d83700d")
-    time.sleep(1)
+    # Wait for Elasticsearch refresh for search
+    time.sleep(2)
     actual_metrics_batch1 = Search(index="mlflow-metrics") \
         .filter("term", run_id="7b2e71956f3d4c08b042624a8d83700d") \
         .filter("term", key="metric_batch1").execute()
@@ -463,7 +469,8 @@ def test_list_all_columns_big(init_store):
         new_tags_key.append(f'my_tag{i}')
     init_store.log_batch("7b2e71956f3d4c08b042624a8d83700d", metrics=[], params=[], tags=new_tags)
     new_tags_key.sort()
-    time.sleep(1)
+    # Wait for Elasticsearch refresh for search
+    time.sleep(2)
     expected_columns = Columns(metrics=["inf_metric", "metric0", "metric1", "metric_batch1",
                                         "metric_batch2", "nan_metric",
                                         "negative_inf_metric", "new_metric"],
