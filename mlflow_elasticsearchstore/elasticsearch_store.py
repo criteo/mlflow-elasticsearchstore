@@ -379,18 +379,15 @@ class ElasticsearchStore(AbstractStore):
             search_query.append(Q('nested', path=type_dict[key_type], query=query))
         return search_query
 
-    def _get_orderby_clauses(self, order_by_list: List[str]) -> Tuple[List[dict], List[List[str]]]:
+    def _get_orderby_clauses(self, order_by_list: List[str]) -> List[dict]:
         type_dict = {"metric": "latest_metrics", "parameter": "params", "tag": "tags"}
-        type_dict_token = {"metric": "metrics", "parameter": "params", "tag": "tags"}
         sort_clauses = []
-        sort_keys = []
         if order_by_list:
             for order_by_clause in order_by_list:
                 (key_type, key, ascending) = SearchUtils. \
                     parse_order_by_for_search_runs(order_by_clause)
                 sort_order = "asc" if ascending else "desc"
                 if not SearchUtils.is_attribute(key_type, "="):
-                    sort_keys.append([f"data.{type_dict_token[key_type]}", key])
                     key_type = type_dict[key_type]
                     sort_clauses.append({f'{key_type}.value':
                                          {'order': sort_order, "nested":
@@ -398,20 +395,9 @@ class ElasticsearchStore(AbstractStore):
                                            {"term": {f'{key_type}.key': key}}}}})
                 else:
                     sort_clauses.append({key: {'order': sort_order}})
-                    sort_keys.append([f"info.{key}"])
         sort_clauses.append({"start_time": {'order': "desc"}})
-        sort_keys.append(["info.start_time"])
         sort_clauses.append({"_id": {'order': "asc"}})
-        sort_keys.append(["info.run_id"])
-        return sort_clauses, sort_keys
-
-    def _build_next_token_page(self, sort_keys: List[List[str]], last_run: Run) -> List[Any]:
-        next_page_token: List[Any] = []
-        for i, keys in enumerate(sort_keys):
-            next_page_token.append(attrgetter(keys[0])(last_run))
-            if len(keys) == 2:
-                next_page_token[i] = next_page_token[i][keys[1]]
-        return next_page_token
+        return sort_clauses
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str,
                      run_view_type: str, max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
@@ -428,7 +414,7 @@ class ElasticsearchStore(AbstractStore):
         filter_queries = [Q("match", experiment_id=experiment_ids[0]),
                           Q("terms", lifecycle_stage=stages)]
         filter_queries += self._build_elasticsearch_query(parsed_filters)
-        sort_clauses, sort_keys = self._get_orderby_clauses(order_by)
+        sort_clauses = self._get_orderby_clauses(order_by)
         s = Search(index="mlflow-runs").query('bool', filter=filter_queries)
         s = s.sort(*sort_clauses)
         if page_token != "" and page_token is not None:
@@ -438,7 +424,7 @@ class ElasticsearchStore(AbstractStore):
             columns_to_whitelist)
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict) for hit in response]
         if len(runs) == max_results:
-            next_page_token = self._build_next_token_page(sort_keys, runs[-1])
+            next_page_token = response.hits.hits[-1].sort
         else:
             next_page_token = []
         return runs, str(next_page_token)
