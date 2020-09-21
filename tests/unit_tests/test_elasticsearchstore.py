@@ -326,7 +326,7 @@ def test__get_orderby_clauses(create_store):
                                                  "filter": {"term": {'params.key': "param0"}}}}},
                     {"start_time": {'order': "asc"}},
                     {"start_time": {'order': "desc"}},
-                    {"_id": {'order': "asc"}}]
+                    {"run_id": {'order': "asc"}}]
     assert actual_sort_clauses == sort_clauses
 
 

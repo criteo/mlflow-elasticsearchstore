@@ -170,6 +170,7 @@ class ElasticsearchStore(AbstractStore):
             tags_dict[tag.key] = tag.value
         run_tags = [ElasticTag(key=key, value=value) for key, value in tags_dict.items()]
         run = ElasticRun(meta={'id': run_id},
+                         run_id=run_id,
                          experiment_id=experiment_id, user_id=user_id,
                          status=RunStatus.to_string(RunStatus.RUNNING),
                          start_time=start_time, end_time=None,
@@ -393,7 +394,7 @@ class ElasticsearchStore(AbstractStore):
                 else:
                     sort_clauses.append({key: {'order': sort_order}})
         sort_clauses.append({"start_time": {'order': "desc"}})
-        sort_clauses.append({"_id": {'order': "asc"}})
+        sort_clauses.append({"run_id": {'order': "asc"}})
         return sort_clauses
 
     def _search_runs(self, experiment_ids: List[str], filter_string: str,

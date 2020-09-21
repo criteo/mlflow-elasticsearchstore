@@ -96,6 +96,7 @@ class ElasticTag(InnerDoc):
 
 
 class ElasticRun(Document):
+    run_id = Keyword()
     name = Keyword()
     source_type = Keyword()
     source_name = Keyword()
