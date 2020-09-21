@@ -233,7 +233,7 @@ class ElasticsearchStore(AbstractStore):
         if not (latest_metric_exist):
             run.latest_metrics.append(new_latest_metric)
 
-    def _log_metric(self, run: ElasticRun, run_id: str, metric: Metric) -> None:
+    def _log_metric(self, run: ElasticRun, metric: Metric) -> None:
         _validate_metric(metric.key, metric.value, metric.timestamp, metric.step)
         is_nan = math.isnan(metric.value)
         if is_nan:
@@ -247,14 +247,14 @@ class ElasticsearchStore(AbstractStore):
                                    timestamp=metric.timestamp,
                                    step=metric.step,
                                    is_nan=is_nan,
-                                   run_id=run_id)
+                                   run_id=run.meta.id)
         self._update_latest_metric_if_necessary(new_metric, run)
         new_metric.save()
 
     def log_metric(self, run_id: str, metric: Metric) -> None:
         run = self._get_run(run_id=run_id)
         self._check_run_is_active(run)
-        self._log_metric(run, run_id, metric)
+        self._log_metric(run, metric)
         run.update(latest_metrics=run.latest_metrics)
 
     def _log_param(self, run: Run, param: Param) -> None:
@@ -440,7 +440,7 @@ class ElasticsearchStore(AbstractStore):
         self._check_run_is_active(run)
         try:
             for metric in metrics:
-                self._log_metric(run, run_id, metric)
+                self._log_metric(run, metric)
             for param in params:
                 self._log_param(run, param)
             for tag in tags:
