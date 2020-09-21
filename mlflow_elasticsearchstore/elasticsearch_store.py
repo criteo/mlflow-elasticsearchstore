@@ -404,10 +404,10 @@ class ElasticsearchStore(AbstractStore):
                      order_by: List[str] = None, page_token: str = None,
                      columns_to_whitelist: List[str] = None) -> Tuple[List[Run], str]:
 
-        if max_results > SEARCH_MAX_RESULTS_THRESHOLD:
+        if max_results > 10000:
             raise MlflowException("Invalid value for request parameter max_results. It must be at "
                                   "most {}, but got value {}"
-                                  .format(SEARCH_MAX_RESULTS_THRESHOLD, max_results),
+                                  .format(10000, max_results),
                                   INVALID_PARAMETER_VALUE)
         stages = LifecycleStage.view_type_to_stages(run_view_type)
         parsed_filters = SearchUtils.parse_search_filter(filter_string)
