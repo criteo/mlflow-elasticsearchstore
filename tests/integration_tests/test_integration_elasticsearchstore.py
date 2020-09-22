@@ -310,7 +310,7 @@ def test_log_metric_with_inf_value(init_store):
                                timestamp=10, step=0, is_nan=False) in actual_run.latest_metrics
 
 
-@ pytest.mark.usefixtures('init_store')
+@pytest.mark.usefixtures('init_store')
 def test_log_metric_with_negative_inf_value(init_store):
     new_metric = Metric(key="negative_inf_metric",
                         value=-1.7976931348623157e309, timestamp=10, step=0)
@@ -537,9 +537,10 @@ def test__search_runs_simple_filter(expected_runs_ids, test_filter_string, init_
 def test__search_runs_ILIKE_filter(init_store):
     expected_runs_ids = ['4baa8e505cdb49109b6819a497f1a58a',
                          '1e5200ae248b476cb0e60286e3f061a4', 'd57a45f3763e4827b7c03f03d60dbbe1']
-    actual_runs = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
-                                          filter_string='tags."tag0" ILIKE \'%va%\'',
-                                          run_view_type=ViewType.ACTIVE_ONLY)
+    actual_runs, next_page_token = init_store \
+        ._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                      filter_string='tags."tag0" ILIKE \'%va%\'',
+                      run_view_type=ViewType.ACTIVE_ONLY)
     assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
@@ -726,6 +727,24 @@ def test__search_runs_columns_to_whitelist_all_col(init_store):
         assert 'tag3' in run._data._tags
 
 
+@pytest.mark.parametrize("expected_token,test_max_results, test_order_by",
+                         [(str([]), 10000, []),
+                          (str([1597324766681, '4baa8e505cdb49109b6819a497f1a58a']), 1, []),
+                          (str(['valeur4', 4.0, 1597324765966,
+                                1597324765966, '1e5200ae248b476cb0e60286e3f061a4']), 2,
+                           ['params.`param0` ASC', 'metrics.`metric1` ASC',
+                            'attributes.start_time ASC'])
+                          ])
+@pytest.mark.usefixtures('init_store')
+def test__search_runs_token(expected_token, test_max_results, test_order_by, init_store):
+    actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                                           filter_string="",
+                                                           max_results=test_max_results,
+                                                           order_by=test_order_by,
+                                                           run_view_type=ViewType.ACTIVE_ONLY)
+    assert next_page_token == expected_token
+
+
 @pytest.mark.usefixtures('init_store')
 def test__search_runs_complete(init_store):
     test_filter_string = 'params."param0" LIKE \'%va%\' and tags.tag1="valeur4" and'
@@ -733,6 +752,7 @@ def test__search_runs_complete(init_store):
     test_max_result = 2
     test_order_by = ['metrics.`metric1` ASC']
     expected_runs_ids = ["d57a45f3763e4827b7c03f03d60dbbe1", "4baa8e505cdb49109b6819a497f1a58a"]
+    expected_token = str([20.0, 1597324766681, "4baa8e505cdb49109b6819a497f1a58a"])
     actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
                                                            filter_string=test_filter_string,
                                                            max_results=test_max_result,
@@ -741,6 +761,7 @@ def test__search_runs_complete(init_store):
     assert len(actual_runs) == len(expected_runs_ids)
     for i, run in enumerate(actual_runs):
         assert run._info.run_id == expected_runs_ids[i]
+    assert next_page_token == expected_token
 
 
 @pytest.mark.usefixtures('init_store')
