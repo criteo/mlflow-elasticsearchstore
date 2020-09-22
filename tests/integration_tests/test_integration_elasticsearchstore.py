@@ -67,6 +67,15 @@ def test_create_experiment(init_store):
 
 
 @pytest.mark.usefixtures('init_store')
+def test_create_experiment_without_artifact_location(init_store):
+    exp_id = init_store.create_experiment(name="new_exp2")
+    expected_artifact_location = init_store._get_artifact_location(exp_id)
+    new_exp = init_store.get_experiment(exp_id)
+    assert new_exp.name == "new_exp2"
+    assert new_exp.artifact_location == expected_artifact_location
+
+
+@pytest.mark.usefixtures('init_store')
 def test_create_experiment_with_no_name(init_store):
     with pytest.raises(MlflowException) as excinfo:
         init_store.create_experiment(name="", artifact_location="artifact_location")

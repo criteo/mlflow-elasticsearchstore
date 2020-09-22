@@ -50,6 +50,7 @@ class ElasticsearchStore(AbstractStore):
 
     def __init__(self, store_uri: str = None, artifact_uri: str = None) -> None:
         self.is_plugin = True
+        self.artifact_root_uri = artifact_uri
         connections.create_connection(hosts=[urllib.parse.urlparse(store_uri).netloc])
         ElasticExperiment.init()
         ElasticRun.init()
@@ -114,15 +115,22 @@ class ElasticsearchStore(AbstractStore):
         response = s.execute()
         return [name.key for name in response.aggregations.exp_names.buckets]
 
+    def _get_artifact_location(self, experiment_id):
+        return append_to_uri_path(self.artifact_root_uri, str(experiment_id))
+
     def create_experiment(self, name: str, artifact_location: str = None) -> str:
         if name is None or name == '':
             raise MlflowException('Invalid experiment name', INVALID_PARAMETER_VALUE)
         existing_names = self._list_experiments_name()
         if name in existing_names:
             raise MlflowException('This experiment name already exists', INVALID_PARAMETER_VALUE)
+
         experiment = ElasticExperiment(name=name, lifecycle_stage=LifecycleStage.ACTIVE,
                                        artifact_location=artifact_location)
         experiment.save(refresh=True)
+        if not artifact_location:
+            artifact_location = self._get_artifact_location(experiment.meta.id)
+        experiment.update(refresh=True, artifact_location=artifact_location)
         return str(experiment.meta.id)
 
     def _check_experiment_is_active(self, experiment: Experiment) -> None:
