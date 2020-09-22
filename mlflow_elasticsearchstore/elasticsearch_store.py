@@ -290,7 +290,7 @@ class ElasticsearchStore(AbstractStore):
         self._set_tag(run, tag)
         run.update(tags=run.tags)
 
-    def get_metric_history(self, run_id: str, metric_key: str, size: int = 100) -> List[Metric]:
+    def get_metric_history(self, run_id: str, metric_key: str) -> List[Metric]:
         s = Search(index="mlflow-metrics").filter("term", run_id=run_id) \
             .filter("term", key=metric_key)
         return [self._hit_to_mlflow_metric(m) for m in s.scan()]
