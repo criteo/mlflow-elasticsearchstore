@@ -66,7 +66,7 @@ class ElasticsearchStore(AbstractStore):
                    run_data=self._hit_to_mlflow_run_data(hit, columns_to_whitelist_key_dict))
 
     def _hit_to_mlflow_run_info(self, hit: Any) -> RunInfo:
-        return RunInfo(run_uuid=hit.meta.id, run_id=hit.meta.id,
+        return RunInfo(run_uuid=hit.run_id, run_id=hit.run_id,
                        experiment_id=str(hit.experiment_id),
                        user_id=hit.user_id,
                        status=hit.status,
@@ -111,7 +111,7 @@ class ElasticsearchStore(AbstractStore):
     def _list_experiments_name(self) -> List[str]:
         s = Search(index="mlflow-experiments")
         s.aggs.bucket("exp_names", "terms", field="name")
-        response = s.execute()
+        response = s.params(size=0).execute()
         return [name.key for name in response.aggregations.exp_names.buckets]
 
     def create_experiment(self, name: str, artifact_location: str = None) -> str:
@@ -165,7 +165,6 @@ class ElasticsearchStore(AbstractStore):
         self._check_experiment_is_active(experiment)
         artifact_location = append_to_uri_path(experiment.artifact_location, run_id,
                                                ElasticsearchStore.ARTIFACTS_FOLDER_NAME)
-
         tags_dict = {}
         for tag in tags:
             tags_dict[tag.key] = tag.value
@@ -249,7 +248,7 @@ class ElasticsearchStore(AbstractStore):
                                    timestamp=metric.timestamp,
                                    step=metric.step,
                                    is_nan=is_nan,
-                                   run_id=run.meta.id)
+                                   run_id=run.run_id)
         self._update_latest_metric_if_necessary(new_metric, run)
         new_metric.save()
 
