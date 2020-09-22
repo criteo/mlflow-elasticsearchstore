@@ -746,6 +746,23 @@ def test__search_runs_token(expected_token, test_max_results, test_order_by, ini
 
 
 @pytest.mark.usefixtures('init_store')
+def test__search_runs_with_token(init_store):
+    page_token = str([1597324766681, '4baa8e505cdb49109b6819a497f1a58a'])
+    expected_runs_ids = ["1e5200ae248b476cb0e60286e3f061a4"]
+    expected_token = str([1597324765966, "1e5200ae248b476cb0e60286e3f061a4"])
+    actual_runs, next_page_token = init_store._search_runs(experiment_ids=["hjb553MBNoOYfhXjp3Tn"],
+                                                           filter_string="",
+                                                           max_results=1,
+                                                           order_by=[],
+                                                           run_view_type=ViewType.ACTIVE_ONLY,
+                                                           page_token=page_token)
+    assert len(actual_runs) == len(expected_runs_ids)
+    for i, run in enumerate(actual_runs):
+        assert run._info.run_id == expected_runs_ids[i]
+    assert next_page_token == expected_token
+
+
+@pytest.mark.usefixtures('init_store')
 def test__search_runs_complete(init_store):
     test_filter_string = 'params."param0" LIKE \'%va%\' and tags.tag1="valeur4" and'
     ' metrics.metric1>9 and metrics.metric0<=0 and metrics.metric1>0'
