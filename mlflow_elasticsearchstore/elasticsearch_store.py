@@ -115,7 +115,7 @@ class ElasticsearchStore(AbstractStore):
         response = s.execute()
         return [name.key for name in response.aggregations.exp_names.buckets]
 
-    def _get_artifact_location(self, experiment_id):
+    def _get_artifact_location(self, experiment_id: str) -> str:
         return append_to_uri_path(self.artifact_root_uri, str(experiment_id))
 
     def create_experiment(self, name: str, artifact_location: str = None) -> str:
