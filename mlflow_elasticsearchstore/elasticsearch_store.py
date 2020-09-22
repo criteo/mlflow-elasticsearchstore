@@ -93,7 +93,7 @@ class ElasticsearchStore(AbstractStore):
         return RunData(metrics=metrics, params=params, tags=tags)
 
     def _hit_to_mlflow_metric(self, hit: Any) -> Metric:
-        return Metric(key=hit.key, value=hit.value,
+        return Metric(key=hit.key, value=hit.value if not hit.is_nan else float("nan"),
                       timestamp=hit.timestamp, step=hit.step)
 
     def _hit_to_mlflow_param(self, hit: Any) -> Param:
