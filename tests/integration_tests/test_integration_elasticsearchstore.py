@@ -44,9 +44,9 @@ def test_list_experiments(init_store):
 
 @pytest.mark.usefixtures('init_store')
 def test_get_experiment_with_fake_id(init_store):
-    with pytest.raises(NotFoundError) as excinfo:
+    with pytest.raises(MlflowException) as excinfo:
         init_store.get_experiment(experiment_id="fake_id")
-        assert "404" in excinfo
+        assert "No Experiment with id=fake_id exists" in excinfo
 
 
 @pytest.mark.usefixtures('init_store')
@@ -178,6 +178,12 @@ def test_get_run(init_store):
         assert metric.__dict__ == expected_run_data._metric_objs[i].__dict__
     assert run._data._params == expected_run_data._params
     assert run._data._tags == expected_run_data._tags
+
+
+def test_get_run_with_fake_id(init_store):
+    with pytest.raises(MlflowException) as excinfo:
+        init_store.get_run(run_id="fake_id")
+        assert "Run with id=fake_id exist not found" in excinfo
 
 
 @pytest.mark.usefixtures('init_store')

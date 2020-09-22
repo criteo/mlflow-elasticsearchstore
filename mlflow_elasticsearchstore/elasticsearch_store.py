@@ -3,12 +3,13 @@ import math
 from operator import attrgetter
 from typing import List, Tuple, Any, Dict
 from elasticsearch_dsl import Search, connections, Q
-from elasticsearch.helpers import scan
+from elasticsearch.exceptions import NotFoundError
 from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
 from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD, SEARCH_MAX_RESULTS_DEFAULT
-from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INVALID_STATE, INTERNAL_ERROR
+from mlflow.protos.databricks_pb2 import (
+    INVALID_PARAMETER_VALUE, INVALID_STATE, INTERNAL_ERROR, RESOURCE_DOES_NOT_EXIST)
 from mlflow.entities import (Experiment, RunTag, Metric, Param, Run, RunInfo, RunData,
                              RunStatus, ExperimentTag, LifecycleStage, ViewType)
 try:
@@ -134,7 +135,12 @@ class ElasticsearchStore(AbstractStore):
             )
 
     def _get_experiment(self, experiment_id: str) -> ElasticExperiment:
-        experiment = ElasticExperiment.get(id=experiment_id)
+        try:
+            experiment = ElasticExperiment.get(id=experiment_id)
+        except NotFoundError:
+            raise MlflowException(
+                "No Experiment with id={} exists".format(experiment_id), RESOURCE_DOES_NOT_EXIST
+            )
         return experiment
 
     def get_experiment(self, experiment_id: str) -> Experiment:
@@ -199,7 +205,12 @@ class ElasticsearchStore(AbstractStore):
         return run.to_mlflow_entity()._info
 
     def get_run(self, run_id: str) -> Run:
-        run = self._get_run(run_id=run_id)
+        try:
+            run = self._get_run(run_id=run_id)
+        except NotFoundError:
+            raise MlflowException(
+                "Run with id={} not found".format(run_id), RESOURCE_DOES_NOT_EXIST
+            )
         return run.to_mlflow_entity()
 
     def _get_run(self, run_id: str) -> ElasticRun:
