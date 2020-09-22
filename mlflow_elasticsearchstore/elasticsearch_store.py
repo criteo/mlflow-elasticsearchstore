@@ -125,11 +125,11 @@ class ElasticsearchStore(AbstractStore):
         experiment.save(refresh=True)
         return str(experiment.meta.id)
 
-    def _check_experiment_is_active(self, experiment: Experiment) -> None:
+    def _check_experiment_is_active(self, experiment: ElasticExperiment) -> None:
         if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
             raise MlflowException(
                 "The experiment {} must be in the 'active' state. "
-                "Current state is {}.".format(experiment.experiment_id, experiment.lifecycle_stage),
+                "Current state is {}.".format(experiment.meta.id, experiment.lifecycle_stage),
                 INVALID_PARAMETER_VALUE,
             )
 
@@ -161,7 +161,7 @@ class ElasticsearchStore(AbstractStore):
     def create_run(self, experiment_id: str, user_id: str,
                    start_time: int, tags: List[RunTag]) -> Run:
         run_id = uuid.uuid4().hex
-        experiment = self.get_experiment(experiment_id)
+        experiment = self._get_experiment(experiment_id)
         self._check_experiment_is_active(experiment)
         artifact_location = append_to_uri_path(experiment.artifact_location, run_id,
                                                ElasticsearchStore.ARTIFACTS_FOLDER_NAME)
@@ -259,7 +259,7 @@ class ElasticsearchStore(AbstractStore):
         self._log_metric(run, metric)
         run.update(latest_metrics=run.latest_metrics)
 
-    def _log_param(self, run: Run, param: Param) -> None:
+    def _log_param(self, run: ElasticRun, param: Param) -> None:
         _validate_param(param.key, param.value)
         new_param = ElasticParam(key=param.key,
                                  value=param.value)
@@ -274,12 +274,12 @@ class ElasticsearchStore(AbstractStore):
     def set_experiment_tag(self, experiment_id: str, tag: ExperimentTag) -> None:
         _validate_experiment_tag(tag.key, tag.value)
         experiment = self._get_experiment(experiment_id)
-        self._check_experiment_is_active(experiment.to_mlflow_entity())
+        self._check_experiment_is_active(experiment)
         new_tag = ElasticExperimentTag(key=tag.key, value=tag.value)
         experiment.tags.append(new_tag)
         experiment.update(tags=experiment.tags)
 
-    def _set_tag(self, run: Run, tag: RunTag) -> None:
+    def _set_tag(self, run: ElasticRun, tag: RunTag) -> None:
         _validate_tag(tag.key, tag.value)
         new_tag = ElasticTag(key=tag.key,
                              value=tag.value)
