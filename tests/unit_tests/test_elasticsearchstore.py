@@ -308,6 +308,7 @@ def test__build_columns_to_whitelist_key_dict(create_store):
 @pytest.mark.usefixtures('create_store')
 def test__build_elasticsearch_query(test_parsed_filter, test_query,
                                     test_type, create_store):
+
     actual_query = create_store._build_elasticsearch_query(parsed_filters=[test_parsed_filter])
     expected_query = [Q('nested', path=test_type, query=test_query)]
     assert actual_query == expected_query

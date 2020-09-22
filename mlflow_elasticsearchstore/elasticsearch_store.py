@@ -3,6 +3,7 @@ import math
 from operator import attrgetter
 from typing import List, Tuple, Any, Dict
 from elasticsearch_dsl import Search, connections, Q
+from elasticsearch.helpers import scan
 from six.moves import urllib
 
 from mlflow.store.tracking.abstract_store import AbstractStore
@@ -291,9 +292,9 @@ class ElasticsearchStore(AbstractStore):
         run.update(tags=run.tags)
 
     def get_metric_history(self, run_id: str, metric_key: str) -> List[Metric]:
-        response = Search(index="mlflow-metrics").filter("term", run_id=run_id) \
-            .filter("term", key=metric_key).execute()
-        return [self._hit_to_mlflow_metric(m["_source"]) for m in response["hits"]["hits"]]
+        s = Search(index="mlflow-metrics").filter("term", run_id=run_id) \
+            .filter("term", key=metric_key)
+        return [self._hit_to_mlflow_metric(m) for m in s.scan()]
 
     def _list_columns(self, experiment_id: str, stages: List[LifecycleStage],
                       column_type: str, columns: List[str], size: int = 100) -> None:
