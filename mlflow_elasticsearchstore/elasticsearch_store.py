@@ -444,10 +444,10 @@ class ElasticsearchStore(AbstractStore):
             columns_to_whitelist)
         runs = [self._hit_to_mlflow_run(hit, columns_to_whitelist_key_dict) for hit in response]
         if len(runs) == max_results:
-            next_page_token = response.hits.hits[-1].sort
+            next_page_token = str(response.hits.hits[-1].sort)
         else:
-            next_page_token = []
-        return runs, str(next_page_token)
+            next_page_token = None
+        return runs, next_page_token
 
     def update_artifacts_location(self, run_id: str, new_artifacts_location: str) -> None:
         run = self._get_run(run_id=run_id)

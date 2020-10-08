@@ -762,7 +762,7 @@ def test__search_runs_columns_to_whitelist_all_col(init_store):
 
 
 @pytest.mark.parametrize("expected_token,test_max_results, test_order_by",
-                         [(str([]), 10000, []),
+                         [(None, 10000, []),
                           (str([1597324766681, '4baa8e505cdb49109b6819a497f1a58a']), 1, []),
                           (str(['valeur4', 4.0, 1597324765966,
                                 1597324765966, '1e5200ae248b476cb0e60286e3f061a4']), 2,
